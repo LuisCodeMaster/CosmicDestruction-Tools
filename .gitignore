@@ -1,0 +1,29 @@
+# Arquivos do jogo: nunca publicar
+*.iso
+*.cso
+*.ISO
+*.CSO
+*.BIN
+*.bin
+*.ds
+*.ddf
+*.psp
+*.at3
+*.pmf
+*.fsb
+*.fev
+amostras*/
+extraido*/
+PSP_GAME/
+
+# Gerados a partir da cópia do jogo
+cd_nomes.txt
+globals*.txt
+relatorio.*
+mod*/
+teste*/
+*.png
+
+# Python
+__pycache__/
+*.pyc
