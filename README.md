@@ -15,7 +15,7 @@ No jogo original, a forma Ultimate só aparece nos Ultimate Events de algumas fa
 | Na forma Ultimate | Volta para o Ben e restaura os aliens do direcional |
 | Como Ben depois que a Ultimate acabou sozinha | Restaura os aliens do direcional |
 
-Aliens com forma Ultimate: Humungossauro, Aranha Macaca, Gelo Fumaça, Eco Eco e Fogo Fátuo.
+Aliens com forma Ultimate: Ernomosauro , Macaco Aranha, Friagem, Eco Eco e Fogo Fátuo.
 Na Ultimate, a roda do canto mostra os golpes especiais (como nos eventos do jogo).
 
 ### Como funciona
