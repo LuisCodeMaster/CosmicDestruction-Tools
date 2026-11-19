@@ -28,7 +28,17 @@ O mod **não altera nenhuma função do jogo**. Ele acrescenta funções novas n
 
 Os Ultimate Events das fases funcionam como no jogo original. Vigias soltam travas presas e devolvem o direcional sozinhos, e uma rede de segurança puxa o jogador de volta se ele cair no vazio enquanto o mod está em ação (`--sem-rede` desliga).
 
-### Como aplicar
+### Como aplicar (jeito fácil)
+
+Baixe o repositório, coloque a sua ISO (ou CSO) na mesma pasta e rode:
+
+```
+python instalar_mod.py
+```
+
+O instalador acha o jogo na pasta, confere se é a versão americana (ULUS-10542), cria `nome do jogo (Ultimate Mod).iso` com o mod aplicado e confere o resultado. A sua ISO original não é alterada. Também dá para passar os caminhos: `python instalar_mod.py "jogo.iso" "saida.iso"` (opção `--sem-rede` desliga a rede de segurança).
+
+### Como aplicar (passo a passo, manual)
 
 ```
 # 1. extrair o script global do jogo
@@ -59,6 +69,7 @@ Todas usam só a biblioteca padrão do Python 3.8+. Rode qualquer uma sem argume
 
 | Ferramenta | Para quê |
 |---|---|
+| `instalar_mod.py` | Instala o mod Ultimate sozinho: ISO/CSO original → ISO nova com o mod |
 | `cd_analisador.py` | Lista e identifica os arquivos da ISO/CSO e extrai arquivos escolhidos (`--extrair`, `--so`) |
 | `cd_iso.py` | Coloca arquivos modificados numa cópia da ISO (no lugar ou no fim, atualizando o índice) |
 | `cd_scripts.py` | Desmonta os scripts compilados `.ds`, aplica o mod `ultimate-livre`, gera a lista de nomes |
