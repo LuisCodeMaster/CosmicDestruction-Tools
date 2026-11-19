@@ -11,53 +11,58 @@ COMANDOS
     python cd_scripts.py gerar-nomes ULUS10542_EBOOT.BIN pasta_extraida cd_nomes.txt
     (o EBOOT descriptografado sai do PPSSPP; a pasta é a extraída com cd_analisador.py --extrair)
 
-  Aplicar o mod "Ultimate a qualquer momento" no globals.ds:
+  Aplicar o mod "Ultimate a qualquer momento" (sempre a partir do globals.ds ORIGINAL;
+  se você passar um arquivo que já tem ESTA versão do mod, ele é tirado antes):
     python cd_scripts.py ultimate-livre globals.ds globals_mod.ds
+    (--sem-rede desliga a rede de segurança contra quedas)
 
-  Rastreio (o mod completo + um sinal: o direcional trava quando a etapa N começa):
-    python cd_scripts.py rastreio 1 globals.ds globals_r1.ds    (etapa 1: SELECT -> voltar a ser Ben)
-    python cd_scripts.py rastreio 2 globals.ds globals_r2.ds    (etapa 2: carregar a forma Ultimate)
-    python cd_scripts.py rastreio 3 globals.ds globals_r3.ds    (etapa 3: virar o alien de novo)
-    python cd_scripts.py rastreio 4 globals.ds globals_r4.ds    (etapa 4: ativar a Ultimate)
+  Conferir na ISO se algum nome usado pelo mod já existe no jogo (opcional):
+    python cd_scripts.py verificar-funcoes jogo.iso relatorio_funcoes.txt
 
-  Teste de diagnóstico (só libera o SELECT para aliens normais, com o efeito original):
-    python cd_scripts.py diagnostico-select globals.ds globals_diag.ds
+  Experimento: especiais das Ultimates
+    python cd_scripts.py especiais-ultimate pasta_com_atk_u pasta_saida
+
+  REGRAS DO INTERPRETADOR (lidas no EBOOT, 0x8950354):
+    0x02 cria um BOOLEANO (0/1); só números float (0x03) aceitam soma e comparação.
+    Conta com booleano não dá erro visível: o resultado só não é gravado.
+    nil e falso são falsos; qualquer número (até 0.0) é verdadeiro.
+  CARREGADOR (EBOOT 0x8952c4c): registra, em ordem, as funções que o cabeçalho
+    anunciar; uma função com o mesmo nome de outra substitui a anterior.
 
 O QUE O MOD ULTIMATE-LIVRE FAZ
-  1. Na função que ativa a forma Ultimate (0x1da4f7b4), remove a checagem
-     da variável 0x28280148, que só as fases ligam durante os Ultimate Events,
-     e preenche a variável 0xf495406a (qual alien vira Ultimate) com o alien atual.
-  2. Em switch_form_update (botão SELECT): quando você está como alien,
-     o SELECT chama a função da forma Ultimate.
-  3. Libera o SELECT para os aliens normais (o jogo só aceitava como Ben,
-     que abre a seleção de aliens, ou já na forma Ultimate).
-  4. Ignora player.isabletotransform no caminho do SELECT (só era verdadeira como Ben).
-  5. Grava, dentro de 3 funções que o jogo nunca usa, o fluxo dos Ultimate Events:
-     volta a ser Ben, guarda os aliens do direcional, carrega o alien e a
-     forma Ultimate, vira o alien de novo e, 1 segundo depois, vira Ultimate.
-     Apertar SELECT de novo sai da forma Ultimate pelo caminho oficial do jogo
-     (undo_ultimate_form), que restaura os aliens do direcional. Se a Ultimate
-     acabar sozinha ou você sair pelo direcional, SELECT (até como Ben) restaura.
-     Os botões ficam travados durante o carregamento. Como Ben, sem nada
-     pendente, SELECT abre a tela de troca de aliens, como no jogo original.
-     Um "vigia" (timer) libera as travas dos botões alguns segundos depois de
-     entrar ou sair da Ultimate, para os controles nunca ficarem presos.
-     Entrar e sair da Ultimate só acontece se o jogador não estiver atacando,
-     interagindo, agarrado ou com o movimento bloqueado.
-  O arquivo continua com o mesmo tamanho.
+  Nenhum byte das funções do jogo é alterado. O mod acrescenta no fim do arquivo:
+  - 17 funções novas com nomes próprios (luis_f_...);
+  - cópias ajustadas de 4 funções do jogo (valem no lugar das originais):
+    switch_form_update (SELECT chama o mod; a roda do canto passa pelo mod; quando
+    o jogo ignora os botões, o mod confere se a trava ficou presa), a função que
+    guarda o direcional (se uma fase começar um Ultimate Event enquanto o mod
+    segura os seus aliens, ela recebe a cópia verdadeira) e as 2 das áreas de
+    câmera fixa (SELECT ainda sai da Ultimate do mod).
+  Fluxo (o mesmo dos Ultimate Events): SELECT como alien -> volta a ser Ben ->
+  guarda o direcional -> carrega o alien e a Ultimate -> vira o alien -> 1 s depois
+  vira Ultimate (o HUD mostra os golpes). SELECT de novo sai e devolve o direcional.
+  A função da Ultimate das fases (0x1da4f7b4) fica original: os eventos das fases
+  funcionam como no jogo e, durante eles, o SELECT não mexe em nada. O direcional
+  é sempre o do jogo (o mod só trava os botões enquanto carrega). Monitor, vigias
+  e a vigia por quadro liberam travas presas e devolvem o direcional sozinhos.
+  A rede de segurança contra quedas só funciona enquanto o mod está em ação.
+  Tartagira e aliens sem Ultimate: SELECT não faz nada. (O Gigante só existe
+  na luta guiada da fase final; fora dela o jogo trava, então ficou desligado.)
+  O arquivo fica ~7,6 KB maior: o cd_iso.py põe ele no fim da ISO.
 
 FORMATO (descoberto)
   Cabeçalho: 1BADBABE, nº de funções+1, hash, ?, tamanho do código inicial.
   Função: 21 00 00 00 | hash do nome | nº parâmetros | tamanho em palavras
   Instruções de 4 bytes [op a b c]; 03 05 07 08 17 19 20 têm +4 bytes.
-    01 r        r = nil            02 r n      r = inteiro n
+    01 r        r = nil            02 r b      r = booleano (b = 0 ou 1)
     03 r f      r = float f        05 r h      r = constante (hash)
     06 a b      rb = ra            07 r h      r = global[h]
     08 r h      global[h] = r      0f a b      rb = não ra
+    0a/0b a b c rc = ra + / - rb (só float)   13 a b c    rc = (ra > rb) (só float)
     10/11 a b c rc = (ra == / != rb)          14/15 a b c rc = ra e/ou rb
     17 a b . h  rb = ra.h          18 a b c    rc = ra[rb]
     19 a b . h  ra.h = rb          1d n        vai para n
-    1f r n      se não r, vai para n (n = b | c<<8, em palavras desde o início da função)
+    1e/1f r n   se r / se não r, vai para n (n = b | c<<8, em palavras desde o início da função)
     20 f a n d  rd = rf(ra, ..., n argumentos)
     21          retorna (dentro de função)
 
@@ -184,12 +189,40 @@ def cmd_desmontar(origem, destino, arq_nomes):
 # ----------------------------------------------------------------------
 # Mod: Ultimate a qualquer momento
 # ----------------------------------------------------------------------
+#
+# COMO O JOGO CARREGA UM .ds (lido no EBOOT, rotina 0x8952c4c)
+#   O cabeçalho diz quantas funções existem (+1 do código inicial). O carregador
+#   registra, em ordem, cada função [hash][nº de parâmetros][tamanho][código] como
+#   variável global com aquele hash (rotina 0x894fc6c: se o nome já existe, a nova
+#   SUBSTITUI a antiga). Por isso o mod:
+#     - não mexe em NENHUM byte das funções do jogo;
+#     - acrescenta no fim do arquivo as funções dele, com nomes próprios (luis_f_...);
+#     - acrescenta também cópias ajustadas de 4 funções do jogo, com o mesmo nome
+#       (switch_form_update, a que guarda o direcional e as 2 de câmera fixa).
+#       Como elas vêm depois, valem no lugar das originais.
+#   Se por algum motivo o jogo não lesse o fim do arquivo, ficaria tudo original.
+#
+# Versões anteriores do mod gravavam o código DENTRO de funções do globals.ds que
+# pareciam sem uso. O relatório verificar-funcoes mostrou que quase todas são
+# usadas pela IA dos inimigos (ai_globl.ddf), pelos pacotes de personagem (g_ec.psp)
+# ou pelo próprio EBOOT (ex.: 0x74879a8a mostra/esconde o HUD).
 
 def instr(op, a=0, b=0, c=0, *imm):
+    if op == 0x02 and (b not in (0, 1) or c != 0):
+        # Lido no interpretador do EBOOT: 0x02 cria um BOOLEANO (tipo 1). O jogo só
+        # soma/compara números do tipo float (0x03); conta com booleano dá erro e o
+        # resultado não é gravado. Para números use num().
+        raise ValueError("0x02 só serve para falso/verdadeiro (0/1), não %d" % b)
     return bytes((op, a, b, c)) + b"".join(struct.pack("<I", v) for v in imm)
 
 
+def num(r, v):
+    """r = número (float), o único tipo com que o jogo faz contas e comparações"""
+    return instr(0x03, r, 0, 0, struct.unpack("<I", struct.pack("<f", float(v)))[0])
+
+
 NOP = instr(0x06, 0, 0, 0)  # r0 = r0 (não faz nada)
+RETORNA = instr(0x21)
 
 
 def chamar0(h):
@@ -198,11 +231,13 @@ def chamar0(h):
 
 
 def montar(itens):
-    """itens: bytes de instr() ou ("rotulo", nome) ou ("se_nao", reg, nome).
+    """itens: bytes de instr() ou ("rotulo", nome), ("se_nao", reg, nome), ("vai", nome).
     Calcula os destinos dos saltos (em palavras desde o início da função)."""
-    pos, rot, tam = 0, {}, []
+    pos, rot = 0, {}
     for it in itens:
         if isinstance(it, tuple) and it[0] == "rotulo":
+            if it[1] in rot:
+                raise ValueError("rótulo repetido: %s" % it[1])
             rot[it[1]] = pos
         elif isinstance(it, tuple):
             pos += 1
@@ -215,43 +250,124 @@ def montar(itens):
         if isinstance(it, tuple) and it[0] == "se_nao":
             alvo = rot[it[2]]
             saida.append(instr(0x1F, it[1], alvo & 0xFF, alvo >> 8))
+        elif isinstance(it, tuple) and it[0] == "vai":
+            alvo = rot[it[1]]
+            saida.append(instr(0x1D, alvo & 0xFF, alvo >> 8, 0))
         else:
             saida.append(it)
     return saida
 
-FUNC_ULT = 0x1DA4F7B4        # ativa a forma Ultimate (chamada pelo ícone do evento)
-FLAG_EVENTO = 0x28280148     # ligada pelas fases só durante os Ultimate Events
-FORMA_ULT = 0xF495406A       # alien que vai virar Ultimate (preenchida pelas fases no evento)
+
+def realocar(corpo, desloc):
+    """Soma desloc (palavras) aos destinos dos saltos de um corpo de função."""
+    ops = []
+    _corpo(corpo, 0, len(corpo), ops, None)
+    out = bytearray(corpo)
+    for p, op, (a, b, c), imm, _ in ops:
+        if op == 0x1D:
+            t = (a | b << 8) + desloc
+            out[p + 1], out[p + 2] = t & 0xFF, t >> 8
+        elif op in (0x1E, 0x1F):
+            t = (b | c << 8) + desloc
+            out[p + 2], out[p + 3] = t & 0xFF, t >> 8
+        elif op in (0x1B, 0x1C):
+            raise ValueError("instrução de salto desconhecida (0x%02x)" % op)
+    return bytes(out)
+
+
+def registro(h, npar, corpo):
+    """Uma função no formato do arquivo: [hash][parâmetros][tamanho][corpo][21]"""
+    if len(corpo) % 4:
+        raise ValueError("corpo desalinhado")
+    return struct.pack("<III", h, npar, len(corpo) // 4 + 1) + corpo + RETORNA
+
+
+# --- do jogo -----------------------------------------------------------
+FUNC_ULT = 0x1DA4F7B4        # ativa a Ultimate nos eventos das fases (o mod NÃO mexe nela)
+FORMA_ULT = 0xF495406A       # alien que vira Ultimate (a fase preenche no começo do evento;
+                             # loadpreultimateform esvazia no fim)
+EVENTO_ULT = 0x28280148      # ligada pelas fases (Roma de dia nunca desliga)
 PRECARREGAR = 0xC61AE271     # carrega (alien, ultimate, -, -) e chama o callback no fim
 CAMPO_ULT = 0x461241EB       # gformdata[alien].<este campo> = id da forma Ultimate
-# Funções do globals.ds que nunca são chamadas (nenhum script, dado ou EBOOT usa).
-# O código das 3 etapas é gravado dentro delas, porque o jogo não registra
-# funções acrescentadas ao arquivo.
-F_SELECT = 0x12E1E367     # etapa 1 (136 palavras livres)
-F_CARREGAR = 0x2B1B2ADF   # etapa 2 (112 palavras livres)
-F_PRONTO = 0x5C1DF2F7     # etapa 3 (179 palavras livres)
-F_TIMER = 0xD03088FD      # etapa 4: chamada pelo timer, ativa a Ultimate (156 palavras livres)
-F_SAIR = 0x2843B93B       # sair da Ultimate: libera travas, restaura o direcional (150 livres)
-F_VIGIA = 0xD21DA61D      # vigia: alguns segundos depois, libera as travas de qualquer jeito (138 livres)
-TRANSF_EM_CURSO = 0x597A958A  # outra trava dos botões (transformação em andamento)
-F_ENTRAR = 0xAA74095A     # entrar na Ultimate: checagens + início do fluxo (197 livres)
-F_SAIR_SEGURO = 0x3BB14198  # sai da Ultimate só em situação segura (194 livres)
-F_SALVAR = 0x0097B937     # guarda a posição do jogador (127 livres)
-F_REPOS = 0x8DE6B44B      # devolve o jogador à posição guardada (127 livres)
-POS_GUARDADA = crc("luis_pos")
-# nº de parâmetros de cada etapa = nº de argumentos com que ela é chamada
-# (o jogo recusa a chamada quando não bate)
-PARAMS = {F_SELECT: 1, F_CARREGAR: 0, F_PRONTO: 0, F_TIMER: 0, F_SAIR: 0, F_VIGIA: 0,
-          F_SALVAR: 0, F_REPOS: 0, F_ENTRAR: 0, F_SAIR_SEGURO: 0}
-NOMES_ANTIGOS = ("luis_ultimate_select", "luis_ult_carregar", "luis_ult_pronto")
-VOLTAR_BEN = 0xEF438378          # volta a ser Ben e chama o callback
-GUARDAR_DIRECIONAL = 0x9A9FABAC  # guarda os aliens do direcional (restaurados ao sair da Ultimate)
-VIRAR_ALIEN = 0x49F16B17         # transforma no alien indicado
-TABELA_ALIENS = 0xE1003DC4       # devolve a tabela de ids (ben, spidermonkey, ...)
-TRAVA_INPUT = 0xC16EF1C4         # quando = 1, switch_form_update ignora os botões
+VOLTAR_BEN = 0xEF438378      # volta a ser Ben e chama o callback
+GUARDAR_DIRECIONAL = 0x9A9FABAC  # guarda os aliens do direcional em BACKUP_JOGO
+RESTAURAR_DIRECIONAL = 0x8EE0F42C  # carrega os aliens de BACKUP_JOGO e chama o callback
+VIRAR_ALIEN = 0x49F16B17     # transforma no alien indicado
+TABELA_ALIENS = 0xE1003DC4   # devolve a tabela de ids (ben, spidermonkey, ...)
+TRAVA_INPUT = 0xC16EF1C4     # ligada: switch_form_update ignora os botões
+TRANSF_EM_CURSO = 0x597A958A # outra trava dos botões (transformação em andamento)
 ULTIMO_NORMAL = 0x39A39C8C   # campo da tabela de aliens = 10 (último alien normal)
-FUNC_DESTRANSF = 0xF02A2526  # efeito/ação ao apertar transformar já sendo alien
+FUNC_DESTRANSF = 0xF02A2526  # volta a ser Ben com o efeito do jogo e chama o callback
 ARG_DESTRANSF = 0xD6819B97
+BACKUP_JOGO = 0x90E796D7     # onde o jogo guarda a cópia do direcional
+ORIG_DPAD = 0x66960347       # troca de alien pelo direcional (gld_psp.ds) - fica original
+ORIG_RODA = 0x8F436AD3       # atualiza a roda do canto (circdisp.ds)
+ZONAS_CAMERA = (0x9AD2BFC4, 0x3482B9BD)  # desligam a troca de alien (câmera fixa)
+IDS_ULTIMATE = (0xF54B5E78, 0x0AA213A1, 0xD1349EEF, 0xF02188EC, 0xBCE02525)  # campos da tabela
+CHARMGR = 0x93ACA275
+MORTO = 0x677FCE7E           # = verdadeiro enquanto o jogador está morto
+ZONA_ATIVA = 0x9CC5B0B4      # = verdadeiro dentro das áreas de câmera fixa
+OUTRA_TRAVA = 0xC0468A8C     # o jogo liga enquanto recarrega o checkpoint
+H_UPD = crc("switch_form_update")
+LIMPA_TARTAGIRA = 0xC7A0B380  # desliga o redemoinho da Tartagira (gld_psp.ds)
+
+
+# --- funções novas do mod (acrescentadas no fim do arquivo) -----------------
+def _fn(nome):
+    return crc("luis_f_" + nome)
+
+
+F_SELECT = _fn("select")          # SELECT (Ben ou alien normal)
+F_ENTRAR = _fn("entrar")          # checagens + início da entrada
+F_CARREGAR = _fn("carregar")      # já como Ben: guarda o direcional e carrega a Ultimate
+F_PRONTO = _fn("pronto")          # carregou: vira o alien
+F_ATIVAR = _fn("ativar")          # 1 s depois: vira Ultimate (o mesmo que o jogo faz no evento)
+F_MONITOR = _fn("monitor")        # a cada 1,5 s confere se a Ultimate continua
+F_FIM = _fn("fim")                # a Ultimate acabou sem o SELECT: devolve
+F_SAIR = _fn("sair")              # já como Ben: devolve os aliens do direcional
+F_SAIR_SEGURO = _fn("sair_seguro")  # sai da Ultimate se for seguro
+F_DEVOLVIDO = _fn("devolvido")    # callback: direcional devolvido
+F_VIGIA = _fn("vigia")            # 15 s após entrar: solta a trava se a entrada empacou
+F_VIGIA_SAIDA = _fn("vigia_saida")  # 10 s após sair: solta se a devolução empacou
+F_DESTRAVA = _fn("destrava")      # Ultimate sem resposta: solta as travas
+F_RODA = _fn("roda")              # no lugar da roda do canto (repassa sempre)
+F_ZONA = _fn("zona")              # controle nas áreas de câmera fixa
+F_QUADRO = _fn("quadro")          # a cada quadro em que o jogo ignora os botões
+F_REDE = _fn("rede")              # rede de segurança contra quedas (só com o mod em ação)
+NPAR_MOD = {F_SELECT: 1, F_RODA: 3, F_ZONA: 3, F_QUADRO: 1}
+
+# --- variáveis do mod ------------------------------------------------------
+SAINDO = crc("luis_saindo")
+RESTAURANDO = crc("luis_restaurando")
+ATIVA = crc("luis_ativa")              # Ultimate do mod ativa (monitor ligado)
+PENDENTE = crc("luis_pendente")        # direcional guardado e ainda não devolvido
+ALIEN_MOD = crc("luis_alien")          # alien que o mod está transformando
+FORMA_MOD = crc("luis_forma_mod")      # valor que o mod pôs em FORMA_ULT
+TRAVA_MOD = crc("luis_trava_mod")      # a trava dos botões ligada é do mod
+COPIA_DIRECIONAL = crc("luis_copia_direcional")
+ESPERA = crc("luis_espera")
+PARADO = crc("luis_parado")
+BATIDA = crc("luis_batida")            # a roda rodou desde a última conferida
+RECUSAS = crc("luis_recusas")          # quadros com SELECT recusado (jogo "ocupado")
+QUADROS = crc("luis_quadros")          # quadros com a devolução parada
+QUADROS_TRAVA = crc("luis_quadros_trava")  # quadros com a trava ligada
+FALHAS = crc("luis_falhas")            # devoluções que empacaram seguidas
+VIGIAS = crc("luis_vigias")
+VIGIAS_SAIDA = crc("luis_vigias_saida")
+REDE_Y = crc("luis_rede_y")            # altura na última conferida
+REDE_POS = crc("luis_rede_pos")        # último lugar seguro (no chão)
+REDE_QUEDA = crc("luis_rede_queda")    # conferidas seguidas caindo
+REDE_FIRME = crc("luis_rede_firme")    # conferidas seguidas parado na mesma altura
+REDE_VIVA = crc("luis_rede_viva")
+
+FUNCOES_MOD = (F_SELECT, F_ENTRAR, F_CARREGAR, F_PRONTO, F_ATIVAR, F_MONITOR, F_FIM,
+               F_SAIR, F_SAIR_SEGURO, F_DEVOLVIDO, F_VIGIA, F_VIGIA_SAIDA, F_DESTRAVA,
+               F_RODA, F_ZONA, F_QUADRO, F_REDE)
+VARIAVEIS_MOD = (SAINDO, RESTAURANDO, ATIVA, PENDENTE, ALIEN_MOD, FORMA_MOD, TRAVA_MOD,
+                 COPIA_DIRECIONAL, ESPERA, PARADO, BATIDA, RECUSAS, QUADROS, QUADROS_TRAVA,
+                 FALHAS, VIGIAS, VIGIAS_SAIDA, REDE_Y, REDE_POS, REDE_QUEDA, REDE_FIRME, REDE_VIVA)
+SUBSTITUIDAS = (H_UPD, GUARDAR_DIRECIONAL) + ZONAS_CAMERA
+LIMITE_QUADROS = 450         # ~15 s a 30 quadros/s (7,5 s se o jogo rodar a 60)
 
 
 def achar_funcao(funcs, h):
@@ -261,293 +377,751 @@ def achar_funcao(funcs, h):
     return r[0]
 
 
-def cmd_ultimate_livre(origem, destino, diagnostico=False, rastreio=0):
-    d = bytearray(open(origem, "rb").read())
-    ops, funcs = ler(bytes(d))
-    if diagnostico:
-        print("  modo diagnóstico: só o ajuste 3 (o SELECT mantém o efeito original)")
+def remover_mod(d):
+    """Se o arquivo já tem este mod (funções acrescentadas no fim), devolve o original."""
+    ops, funcs = ler(d)
+    mod = set(FUNCOES_MOD)
+    idx = next((i for i, f in enumerate(funcs) if f[1] in mod), None)
+    if idx is None:
+        return d, 0
+    resto = funcs[idx:]
+    if any(f[1] not in mod and f[1] not in SUBSTITUIDAS for f in resto):
+        raise ValueError("o fim do arquivo tem funções que não são do mod")
+    corte = funcs[idx][0] + 4
+    out = bytearray(d[:corte])
+    struct.pack_into("<I", out, 4, struct.unpack_from("<I", out, 4)[0] - len(resto))
+    return bytes(out), len(resto)
 
-    # 1) remover a checagem da variável de evento e dizer ao jogo qual alien
-    #    vira Ultimate: global 0xf495406a = gcurrentcharacter
-    #    (fora dos eventos essa variável fica vazia e switch_to_ultimate falha)
-    p0, _, _, fim = achar_funcao(funcs, FUNC_ULT)
-    if diagnostico:
-        fim = p0  # pula o ajuste 1
-    corpo = [o for o in ops if o[4] == FUNC_ULT and p0 < o[0] < fim]
-    h_gform, h_gcur = crc("gformdata"), crc("gcurrentcharacter")
-    feito1 = diagnostico
-    for i in range(len(corpo) - 4):
-        o = corpo[i:i + 5]
-        if (o[0][1] == 0x07 and o[0][3] == (FLAG_EVENTO,) and o[1][1] in (0x1F, 0x06) and
-                o[2][1] == 0x07 and o[2][3] == (h_gform,) and
-                o[3][1] == 0x07 and o[3][3] == (h_gcur,) and o[4][1] == 0x18):
-            r_tab, r_idx = o[2][2][0], o[3][2][0]
-            novo = (instr(0x07, r_idx, 0, 0, h_gcur) +           # r_idx = gcurrentcharacter
-                    instr(0x08, r_idx, 0, 0, FORMA_ULT) +         # global 0xf495406a = r_idx
-                    instr(0x07, r_tab, 0, 0, h_gform) +           # r_tab = gformdata
-                    NOP)
-            ini, fim_t = o[0][0], o[4][0]
-            if len(novo) != fim_t - ini:
-                raise ValueError("tamanho inesperado no ajuste 1")
-            d[ini:fim_t] = novo
-            feito1 = True
-            print("  1/5  trava do evento removida e alien atual passado para a forma Ultimate (0x%x)" % ini)
-            break
-        if (o[0][1] == 0x07 and o[0][3] == (h_gcur,) and o[1][1] == 0x08 and o[1][3] == (FORMA_ULT,)):
-            feito1 = True
-            print("  1/5  já estava aplicado")
-            break
-    if not feito1:
-        raise ValueError("não achei o começo da função da forma Ultimate")
 
-    # 2) botão de transformar (já como alien) -> forma Ultimate
-    h_upd = crc("switch_form_update")
-    p1, _, _, fim1 = achar_funcao(funcs, h_upd)
-    corpo = [o for o in ops if o[4] == h_upd and p1 < o[0] < fim1]
-    feito2 = diagnostico
-    for i in range(0 if diagnostico else len(corpo) - 2):
-        a, b, c = corpo[i], corpo[i + 1], corpo[i + 2]
-        if (a[1] == 0x07 and a[3] == (ARG_DESTRANSF,) and
-                b[1] == 0x07 and b[3] == (FUNC_DESTRANSF,) and
-                c[1] == 0x20 and c[2][0] == b[2][0] and c[2][1] == a[2][0] and c[2][2] == 1):
+def conferir_original(d, ops, funcs):
+    """Recusa arquivos alterados por versões antigas (que mexiam dentro das funções)."""
+    p, _, _, fim = achar_funcao(funcs, FUNC_ULT)
+    corpo = d[p + 16:fim]
+    if instr(0x08, 0, 0, 0, FORMA_ULT)[4:] in corpo or instr(0x07, 0, 0, 0, EVENTO_ULT)[4:] not in corpo:
+        raise ValueError("este globals.ds foi alterado por uma versão antiga do mod. Use o ORIGINAL "
+                         "(o da pasta amostras3 / extraído da ISO original)")
+    p, _, _, fim = achar_funcao(funcs, H_UPD)
+    corpo = d[p + 16:fim]
+    for h in (ARG_DESTRANSF, FUNC_DESTRANSF, ORIG_DPAD, ORIG_RODA):
+        if struct.pack("<I", h) not in corpo:
+            raise ValueError("switch_form_update não é a original. Use o globals.ds ORIGINAL")
+    hashes = {f[1] for f in funcs}
+    for o in ops:
+        if o[1] in (0x05, 0x07, 0x08) and o[3]:
+            hashes.add(o[3][0])
+    choque = hashes & (set(FUNCOES_MOD) | set(VARIAVEIS_MOD))
+    if choque:
+        raise ValueError("nome do mod já existe no jogo: %s" % ", ".join("%08x" % h for h in choque))
+
+
+def corpo_de(d, funcs, h):
+    p, _, npar, fim = achar_funcao(funcs, h)
+    return bytearray(d[p + 16:fim]), npar
+
+
+def ops_de(corpo):
+    ops = []
+    _corpo(bytes(corpo), 0, len(corpo), ops, None)
+    return ops
+
+
+def ajustar_switch_form_update(d, funcs):
+    """Cópia de switch_form_update com 4 ajustes (o resto fica igual ao jogo):
+    a) SELECT (Ben ou alien) chama F_SELECT;  b) sem a checagem isabletotransform
+    (ela só é verdadeira como Ben; F_SELECT confere para o Ben);  c) a roda do canto
+    passa por F_RODA (que sempre repassa);  d) quando o jogo ignora os botões
+    (travas), F_QUADRO confere se a trava ficou presa. O direcional fica original."""
+    corpo, npar = corpo_de(d, funcs, H_UPD)
+    ops = ops_de(corpo)
+    pos = lambda o: o[0]
+
+    # a) SELECT
+    feito = False
+    for i in range(len(ops) - 2):
+        a, b, c = ops[i], ops[i + 1], ops[i + 2]
+        if (a[1] == 0x07 and a[3] == (ARG_DESTRANSF,) and b[1] == 0x07 and b[3] == (FUNC_DESTRANSF,)
+                and c[1] == 0x20 and c[2][0] == b[2][0] and c[2][1] == a[2][0] and c[2][2] == 1):
             r_arg, r_fn, r_dst = a[2][0], b[2][0], c[3][0]
-            novo = (instr(0x01, r_arg) +                    # r_arg = nil
-                    instr(0x07, r_fn, 0, 0, F_SELECT) +      # r_fn = etapa 1
-                    instr(0x20, r_fn, r_arg, 1, r_dst) +     # chama
-                    NOP)
-            ini, fim_trecho = a[0], c[0] + 8
-            if len(novo) != fim_trecho - ini:
-                raise ValueError("tamanho do trecho inesperado")
-            d[ini:fim_trecho] = novo
-            # o salto anterior separava Ben (tela de troca) de alien; agora a
-            # etapa 1 decide os dois casos
-            ant = corpo[i - 1]
-            if ant[1] == 0x1F:
-                d[ant[0]:ant[0] + 4] = NOP
-            feito2 = True
-            print("  2/5  SELECT (já como alien) ligado à forma Ultimate (0x%x)" % ini)
+            novo = instr(0x01, r_arg) + instr(0x07, r_fn, 0, 0, F_SELECT) + \
+                instr(0x20, r_fn, r_arg, 1, r_dst) + NOP
+            ini, fim = pos(a), pos(c) + 8
+            if len(novo) != fim - ini or ops[i - 1][1] != 0x1F:
+                raise ValueError("trecho do SELECT inesperado")
+            corpo[ini:fim] = novo
+            ant = ops[i - 1]           # separava Ben (tela de troca) de alien
+            corpo[pos(ant):pos(ant) + 4] = NOP
+            feito = True
             break
-    if not feito2:
-        alvos = [FUNC_ULT, F_SELECT] + [crc(n) for n in NOMES_ANTIGOS]
-        for i in range(len(corpo) - 1):
-            if corpo[i][1] == 0x07 and corpo[i][3] and corpo[i][3][0] in alvos and corpo[i + 1][1] == 0x20:
-                ant = corpo[i - 2] if i >= 2 else None   # (01 r_arg) vem antes do 07
-                if ant is not None and ant[1] == 0x1F:
-                    d[ant[0]:ant[0] + 4] = NOP
-                    print("  2/5  Ben e aliens agora passam pela etapa 1")
-                if corpo[i][3][0] != F_SELECT:
-                    pos = corpo[i][0] + 4
-                    d[pos:pos + 4] = struct.pack("<I", F_SELECT)
-                    print("  2/5  SELECT redirecionado para a etapa 1")
-                else:
-                    print("  2/5  botão SELECT -> etapa 1: já estava aplicado")
-                feito2 = True
-                break
-    if not feito2:
-        raise ValueError("não achei o trecho do botão de transformar")
+    if not feito:
+        raise ValueError("não achei o trecho do botão SELECT")
 
-    # 3) liberar o SELECT para os aliens normais (antes só Ben e formas Ultimate)
-    feito3 = False
-    for i in range(len(corpo) - 2):
-        a, b, c = corpo[i], corpo[i + 1], corpo[i + 2]
-        if a[1] == 0x17 and a[3] == (ULTIMO_NORMAL,) and b[1] in (0x07, 0x13):
-            # procura o "not" logo depois da comparação
-            for j in range(i + 1, min(i + 6, len(corpo))):
-                if corpo[j][1] == 0x13 and j + 1 < len(corpo):
-                    nx = corpo[j + 1]
-                    if nx[1] == 0x0F and nx[2][0] == corpo[j][2][2]:
-                        dst = nx[2][1]
-                        d[nx[0]:nx[0] + 4] = instr(0x02, dst, 1, 0)   # rdst = 1 (sempre verdadeiro)
-                        feito3 = True
-                        print("  3/5  SELECT liberado para os aliens normais (0x%x)" % nx[0])
-                    elif nx[1] == 0x02 and nx[2][1] == 1:
-                        feito3 = True
-                        print("  3/5  SELECT para aliens normais: já estava aplicado")
-                    break
-            if feito3:
-                break
-    if not feito3:
-        raise ValueError("não achei a checagem de alien normal")
-
-    # 4) ignorar player.isabletotransform no caminho do SELECT
-    #    (ela só libera o SELECT como Ben, que abre a tela de troca de aliens)
-    feito4 = diagnostico
+    # b) isabletotransform
+    feito = False
     h_iat = crc("isabletotransform")
-    for i in range(0 if diagnostico else len(corpo) - 3):
-        if corpo[i][1] == 0x17 and corpo[i][3] == (h_iat,):
-            r_fn = corpo[i][2][1]
-            ch = corpo[i + 1]
-            if ch[1] == 0x20 and ch[2][0] == r_fn:
-                r_res = ch[3][0]
-                nx = corpo[i + 2]
-                if nx[1] == 0x14 and nx[2][1] == r_res:
-                    d[nx[0]:nx[0] + 4] = instr(0x06, nx[2][0], nx[2][2], 0)  # rc = ra (sem o "and")
-                    feito4 = True
-                    print("  4/5  checagem isabletotransform ignorada no SELECT (0x%x)" % nx[0])
-                elif nx[1] == 0x06 and nx[2][1] != r_res:
-                    feito4 = True
-                    print("  4/5  isabletotransform: já estava aplicado")
-                break
-    if not feito4:
+    for i in range(len(ops) - 2):
+        if ops[i][1] == 0x17 and ops[i][3] == (h_iat,):
+            ch, nx = ops[i + 1], ops[i + 2]
+            if ch[1] == 0x20 and ch[2][0] == ops[i][2][1] and nx[1] == 0x14 and nx[2][1] == ch[3][0]:
+                corpo[pos(nx):pos(nx) + 4] = instr(0x06, nx[2][0], nx[2][2], 0)  # rc = ra
+                feito = True
+            break
+    if not feito:
         raise ValueError("não achei a checagem isabletotransform")
 
-    # 5) gravar as 3 etapas (o mesmo fluxo dos Ultimate Events) dentro de
-    #    funções que o jogo nunca usa:
-    #    SELECT -> volta a ser Ben -> guarda os aliens do direcional -> carrega
-    #    alien + forma Ultimate -> vira o alien de novo -> 1 s depois, Ultimate.
-    if not diagnostico:
-        velhas = [f for f in funcs if f[1] in {crc(n) for n in NOMES_ANTIGOS}]
-        if velhas:  # remove funções acrescentadas por versões anteriores do mod
-            ini_v = min(f[0] for f in velhas)
-            fim_v = max(f[3] for f in velhas)
-            del d[ini_v:fim_v]
-            struct.pack_into("<I", d, 4, struct.unpack_from("<I", d, 4)[0] - len(velhas))
-            ops, funcs = ler(bytes(d))
-            print("  (removidas %d funções de uma versão anterior do mod)" % len(velhas))
-        h_gform, h_gcur = crc("gformdata"), crc("gcurrentcharacter")
-        um = struct.unpack("<I", struct.pack("<f", 1.0))[0]
-        seis = struct.unpack("<I", struct.pack("<f", 6.0))[0]
-        quinze = struct.unpack("<I", struct.pack("<f", 15.0))[0]
-        h_player, h_person = crc("player"), crc("person")
-        seguro = []   # só transforma se não estiver atacando/interagindo/agarrado/sem movimento
-        for k, metodo in enumerate(("isattacking", "isinteracting", "isstruggling")):
-            seguro += [
-                instr(0x07, 28, 0, 0, h_player), instr(0x07, 25, 0, 0, h_player),
-                instr(0x17, 25, 3, 0, h_person), instr(0x20, 3, 28, 1, 20),   # r20 = person
-                instr(0x17, 20, 21, 0, crc(metodo)), instr(0x06, 20, 22, 0),
-                instr(0x20, 21, 22, 1, 23),                                   # r23 = person.metodo()
-                ("se_nao", 23, "ok%d" % k), instr(0x21), ("rotulo", "ok%d" % k),
-            ]
-        seguro += [
-            instr(0x07, 28, 0, 0, h_player), instr(0x07, 25, 0, 0, h_player),
-            instr(0x17, 25, 21, 0, crc("isplayermovementdisabled")),
-            instr(0x20, 21, 28, 1, 23),
-            ("se_nao", 23, "ok_mov"), instr(0x21), ("rotulo", "ok_mov"),
-        ]
-        etapas = {
-            F_SELECT: montar([                          # etapa 1 (SELECT)
-                # A) fluxo da Ultimate ativo (alien guardado)? SELECT = sair e restaurar
-                instr(0x07, 9, 0, 0, FORMA_ULT),
-                ("se_nao", 9, "B"),
-                instr(0x07, 2, 0, 0, TABELA_ALIENS), instr(0x20, 2, 8, 0, 3),
-                instr(0x17, 3, 4, 0, crc("ben")),
-                instr(0x07, 5, 0, 0, h_gcur), instr(0x10, 5, 4, 6),   # r6 = (é o Ben?)
-                ("se_nao", 6, "A_alien"),
-                *chamar0(F_SAIR),                                       # já é Ben: sai direto
-                instr(0x21),
-                ("rotulo", "A_alien"),
-                *chamar0(F_SAIR_SEGURO),                               # checa e volta a ser Ben
-                instr(0x21),
-                # B) é o Ben? SELECT abre a tela de troca de aliens (comportamento original)
-                ("rotulo", "B"),
-                instr(0x07, 2, 0, 0, TABELA_ALIENS), instr(0x20, 2, 8, 0, 3),
-                instr(0x17, 3, 4, 0, crc("ben")),
-                instr(0x07, 10, 0, 0, h_gcur), instr(0x10, 10, 4, 6),
-                ("se_nao", 6, "C"),
-                instr(0x07, 28, 0, 0, crc("overlay")),
-                instr(0x07, 29, 0, 0, crc("characterpresetscreen_enter")),
-                instr(0x07, 25, 0, 0, crc("overlay")),
-                instr(0x17, 25, 3, 0, crc("runuser")), instr(0x20, 3, 28, 2, 4),
-                instr(0x07, 28, 0, 0, 0x23F332A3), instr(0x07, 25, 0, 0, 0x801B4AF7),
-                instr(0x20, 25, 28, 1, 3),
-                instr(0x21),
-                # C) alien: entrar na forma Ultimate
-                ("rotulo", "C"),
-                *chamar0(F_ENTRAR),
-                instr(0x21),
-            ]),
-            F_ENTRAR: montar([                          # entrar na forma Ultimate (só em situação segura)
-                instr(0x07, 2, 0, 0, h_gform), instr(0x07, 3, 0, 0, h_gcur),
-                instr(0x18, 2, 3, 4), instr(0x17, 4, 5, 0, CAMPO_ULT),   # r5 = forma Ultimate
-                ("se_nao", 5, "fim"),
-                *seguro,
-                instr(0x07, 3, 0, 0, h_gcur),
-                instr(0x02, 6, 1, 0), instr(0x08, 6, 0, 0, TRAVA_INPUT),  # trava durante o carregamento
-                instr(0x08, 3, 0, 0, FORMA_ULT),                          # guarda o alien
-                instr(0x07, 8, 0, 0, F_VIGIA), instr(0x03, 9, 0, 0, quinze),  # vigia em 15 s
-                instr(0x03, 10, 0, 0, um), instr(0x07, 6, 0, 0, crc("createtimer")),
-                instr(0x20, 6, 8, 3, 7),
-                instr(0x07, 8, 0, 0, F_CARREGAR),                         # volta a ser Ben e
-                instr(0x07, 6, 0, 0, VOLTAR_BEN), instr(0x20, 6, 8, 1, 7),  # depois etapa 2
-                ("rotulo", "fim"),
-                instr(0x21),
-            ]),
-            F_CARREGAR: montar([                        # etapa 2 (já como Ben)
-                *chamar0(GUARDAR_DIRECIONAL),           # guarda os aliens do direcional
-                instr(0x07, 8, 0, 0, FORMA_ULT),        # r8 = alien
-                instr(0x07, 2, 0, 0, h_gform),
-                instr(0x18, 2, 8, 4), instr(0x17, 4, 9, 0, CAMPO_ULT),   # r9 = forma Ultimate
-                instr(0x01, 10), instr(0x01, 11),
-                instr(0x07, 12, 0, 0, F_PRONTO),        # r12 = etapa 3
-                instr(0x07, 6, 0, 0, PRECARREGAR), instr(0x20, 6, 8, 5, 7),  # carrega
-                instr(0x21),
-            ]),
-            F_PRONTO: montar([                          # etapa 3 (carregamento terminou)
-                instr(0x07, 8, 0, 0, FORMA_ULT),
-                instr(0x07, 6, 0, 0, VIRAR_ALIEN), instr(0x20, 6, 8, 1, 7),  # vira o alien
-                instr(0x07, 8, 0, 0, F_TIMER),          # 1 s depois: etapa 4
-                instr(0x03, 9, 0, 0, um), instr(0x03, 10, 0, 0, um),
-                instr(0x07, 6, 0, 0, crc("createtimer")), instr(0x20, 6, 8, 3, 7),
-                instr(0x21),
-            ]),
-            F_TIMER: montar([                           # etapa 4 (timer)
-                instr(0x01, 8),
-                instr(0x07, 6, 0, 0, FUNC_ULT), instr(0x20, 6, 8, 1, 7),  # ativa a Ultimate
-                instr(0x21),
-            ]),
-            F_SAIR: montar([                            # sair da Ultimate (já como Ben)
-                instr(0x01, 6),
-                instr(0x08, 6, 0, 0, TRAVA_INPUT),      # libera as travas ANTES de restaurar
-                instr(0x08, 6, 0, 0, TRANSF_EM_CURSO),
-                *chamar0(crc("undo_ultimate_form")),    # remove a Ultimate e restaura o direcional
-                instr(0x07, 8, 0, 0, F_VIGIA), instr(0x03, 9, 0, 0, seis),  # vigia em 6 s
-                instr(0x03, 10, 0, 0, um), instr(0x07, 6, 0, 0, crc("createtimer")),
-                instr(0x20, 6, 8, 3, 7),
-                instr(0x21),
-            ]),
-            F_VIGIA: montar([                           # libera as travas de qualquer jeito
-                instr(0x01, 6),
-                instr(0x08, 6, 0, 0, TRAVA_INPUT),
-                instr(0x08, 6, 0, 0, TRANSF_EM_CURSO),
-                instr(0x21),
-            ]),
-            F_SAIR_SEGURO: montar([                     # só sai se for seguro
-                *seguro,
-                instr(0x07, 8, 0, 0, F_SAIR),           # volta a ser Ben e sai
-                instr(0x07, 6, 0, 0, FUNC_DESTRANSF), instr(0x20, 6, 8, 1, 7),
-                instr(0x21),
-            ]),
-            # versões anteriores usavam estas duas para teletransportar o jogador
-            # (playermgr.beam), mas isso deixava o personagem de lado: agora vazias
-            F_SALVAR: [instr(0x21)],
-            F_REPOS: [instr(0x21)],
-        }
-        if rastreio:
-            # sinal: trava o direcional (mesma variável que a forma Ultimate liga)
-            alvo = [F_SELECT, F_CARREGAR, F_PRONTO, F_TIMER][rastreio - 1]
-            sinal = [instr(0x02, 20, 1, 0), instr(0x08, 20, 0, 0, TRAVA_INPUT)]  # 3 palavras
-            novo_corpo = []
-            for ins in etapas[alvo]:
-                if ins[0] == 0x1F:   # corrige o destino do salto (+3 palavras)
-                    alvo_salto = ins[2] | (ins[3] << 8)
-                    ins = instr(0x1F, ins[1], (alvo_salto + 3) & 0xFF, (alvo_salto + 3) >> 8)
-                novo_corpo.append(ins)
-            etapas[alvo] = sinal + novo_corpo
-            print("  rastreio: a etapa %d trava o direcional assim que começa" % rastreio)
-        for h, corpo_f in etapas.items():
-            p, _, _, fim_f = achar_funcao(funcs, h)
-            codigo = b"".join(corpo_f)
-            espaco = fim_f - (p + 16)
-            if len(codigo) > espaco:
-                raise ValueError("função %08x pequena demais" % h)
-            d[p + 16:fim_f] = codigo + NOP * ((espaco - len(codigo)) // 4)
-            struct.pack_into("<I", d, p + 8, PARAMS[h])
-        print("  5/5  funções gravadas em funções que o jogo não usa (vigia + entrada e saída seguras)")
+    # (o caminho da forma Ultimate fica original: a roda mostra os golpes no HUD)
+    if not any(o[1] == 0x17 and o[3] == (ULTIMO_NORMAL,) for o in ops):
+        raise ValueError("não achei a checagem de alien normal")
 
-    ler(bytes(d))  # confere se o script continua válido
-    with open(destino, "wb") as f:
-        f.write(d)
-    print("%s criado (%d bytes)" % (destino, len(d)))
+    # c) roda do canto -> F_RODA (as 2 chamadas)
+    n_roda = 0
+    for o in ops:
+        if o[1] == 0x07 and o[3] == (ORIG_RODA,):
+            corpo[pos(o) + 4:pos(o) + 8] = struct.pack("<I", F_RODA)
+            n_roda += 1
+    if n_roda != 2:
+        raise ValueError("esperava 2 chamadas da roda, achei %d" % n_roda)
+
+    # d) a saída antecipada (travas, cena, morto...) passa por F_QUADRO.
+    #    No ponto da saída: r5 = cena rodando, r7 = (0x2b2a4faf == nil),
+    #    r10 = morto, r12 = câmera fixa (calculados nas palavras 0-31).
+    esperado = [(0x07, TRANSF_EM_CURSO), (0x07, TRAVA_INPUT), (0x15,), (0x07, crc("cutscene")),
+                (0x07, crc("cutscene")), (0x17, crc("isplaying")), (0x20,), (0x15,),
+                (0x07, 0x2B2A4FAF), (0x01,), (0x10,), (0x15,), (0x07, OUTRA_TRAVA), (0x15,),
+                (0x07, MORTO), (0x02,), (0x10,), (0x15,), (0x07, ZONA_ATIVA), (0x02,), (0x10,),
+                (0x15,), (0x1F,), (0x21,)]
+    for o, e in zip(ops, esperado):
+        if o[1] != e[0] or (len(e) > 1 and o[3] != (e[1],)):
+            raise ValueError("começo de switch_form_update diferente do esperado")
+    regs = (ops[6][3][0], ops[10][2][2], ops[16][2][2], ops[20][2][2])
+    if regs != (5, 7, 10, 12) or ops[22][2][1] != pos(ops[23]) // 4 + 1:
+        raise ValueError("registradores da saída antecipada inesperados")
+    saida = ops[23]
+    fim_original = len(corpo) // 4          # aqui ficava o "retorna" final do jogo
+    cauda = fim_original + 1
+    corpo[pos(saida):pos(saida) + 4] = instr(0x1D, cauda & 0xFF, cauda >> 8, 0)
+    corpo += RETORNA                         # o final original continua retornando
+    corpo += b"".join([
+        instr(0x15, 5, 7, 14),               # r14 = cena ou 0x2b2a4faf vazio
+        instr(0x07, 15, 0, 0, OUTRA_TRAVA), instr(0x15, 14, 15, 14),
+        instr(0x15, 14, 10, 14), instr(0x15, 14, 12, 14),   # ou morto ou câmera fixa
+        instr(0x07, 16, 0, 0, F_QUADRO), instr(0x20, 16, 14, 1, 17),
+        RETORNA,
+    ])
+    return bytes(corpo), npar
+
+
+def ajustar_guardar_direcional(d, funcs):
+    """Cópia da função que guarda o direcional. Se uma FASE começa um Ultimate Event
+    enquanto o mod segura a cópia do direcional (pendente), entrega para a fase a
+    cópia verdadeira (assim, no fim do evento, a fase devolve os aliens certos) e o
+    mod sai de cena. Fora isso, é a função original."""
+    corpo, npar = corpo_de(d, funcs, GUARDAR_DIRECIONAL)
+    h_gform, h_gcur = crc("gformdata"), crc("gcurrentcharacter")
+    prefixo = b"".join(montar([
+        instr(0x07, 1, 0, 0, PENDENTE), ("se_nao", 1, "original"),
+        instr(0x07, 2, 0, 0, COPIA_DIRECIONAL), ("se_nao", 2, "original"),
+        instr(0x08, 2, 0, 0, BACKUP_JOGO),
+        # tira a Ultimate do mod da memória (a fase vai carregar a dela)
+        instr(0x07, 8, 0, 0, ALIEN_MOD), ("se_nao", 8, "limpa"),
+        instr(0x07, 3, 0, 0, h_gform), instr(0x18, 3, 8, 4), instr(0x17, 4, 5, 0, CAMPO_ULT),
+        ("se_nao", 5, "limpa"),
+        instr(0x07, 6, 0, 0, h_gcur), instr(0x10, 6, 5, 7), ("se_nao", 7, "remove"),
+        ("vai", "limpa"),
+        ("rotulo", "remove"),
+        instr(0x18, 3, 5, 4), instr(0x17, 4, 11, 0, crc("character")),
+        instr(0x07, 10, 0, 0, CHARMGR), instr(0x07, 7, 0, 0, CHARMGR),
+        instr(0x17, 7, 3, 0, crc("removecharacter")), instr(0x20, 3, 10, 2, 4),
+        ("rotulo", "limpa"),
+        instr(0x01, 6),
+        *[instr(0x08, 6, 0, 0, v) for v in (PENDENTE, COPIA_DIRECIONAL, ATIVA, SAINDO,
+                                            RESTAURANDO, ALIEN_MOD, FORMA_MOD)],
+        instr(0x07, 1, 0, 0, TRAVA_MOD), ("se_nao", 1, "fim"),
+        instr(0x08, 6, 0, 0, TRAVA_INPUT), instr(0x08, 6, 0, 0, TRAVA_MOD),
+        ("rotulo", "fim"),
+        RETORNA,
+        ("rotulo", "original"),
+    ]))
+    return prefixo + realocar(bytes(corpo), len(prefixo) // 4), npar
+
+
+def ajustar_zona(d, funcs, hz):
+    """Áreas de câmera fixa: o jogo desliga o controle de troca (setinputcb(1, nil)).
+    Na Ultimate do mod você ficava preso nela. Agora o controle vira F_ZONA, que só
+    aceita SELECT para sair da Ultimate do mod."""
+    corpo, npar = corpo_de(d, funcs, hz)
+    h_im, h_sic = crc("inputmgr"), crc("setinputcb")
+    antes = instr(0x01, 7) + instr(0x07, 2, 0, 0, h_im) + instr(0x17, 2, 0, 0, h_sic)
+    depois = instr(0x07, 7, 0, 0, F_ZONA) + instr(0x17, 5, 0, 0, h_sic) + NOP
+    i = bytes(corpo).find(antes)
+    if i < 0 or i % 4 or instr(0x07, 5, 0, 0, h_im) not in bytes(corpo[:i]):
+        raise ValueError("não achei o desligamento de controle em %08x" % hz)
+    corpo[i:i + len(antes)] = depois
+    return bytes(corpo), npar
+
+
+def funcoes_do_mod(rede=True):
+    """Código das funções novas: {hash: lista de instruções}."""
+    h_gform, h_gcur = crc("gformdata"), crc("gcurrentcharacter")
+    h_player, h_person = crc("player"), crc("person")
+
+    def g(r, h): return instr(0x07, r, 0, 0, h)
+    def s(r, h): return instr(0x08, r, 0, 0, h)
+    def nil(r): return instr(0x01, r)
+    def sim(r): return instr(0x02, r, 1, 0)
+
+    def tabela(dst):                           # rdst = tabela de ids dos aliens
+        return [g(30, TABELA_ALIENS), instr(0x20, 30, 31, 0, dst)]
+
+    def timer(func, segundos):                 # createtimer(func, segundos, 1)
+        return [g(8, func), num(9, segundos), num(10, 1), g(6, crc("createtimer")),
+                instr(0x20, 6, 8, 3, 7)]
+
+    def eh_ben(dst):                           # rdst = é o Ben? (usa r11, r12, r17)
+        return [*tabela(11), g(12, h_gcur), instr(0x17, 11, 17, 0, crc("ben")),
+                instr(0x10, 12, 17, dst)]
+
+    def e_especial(dst, tmp):                  # forma Ultimate (ou Gigante)? usa r11..r14
+        itens = [*tabela(11), g(12, h_gcur), instr(0x02, dst, 0, 0)]
+        for u in IDS_ULTIMATE + (crc("waybig"),):
+            itens += [instr(0x17, 11, 13, 0, u), instr(0x10, 12, 13, tmp),
+                      instr(0x15, dst, tmp, dst)]
+        return itens
+
+    def cena(dst):                             # rdst = cena do jogo rodando?
+        return [g(28, crc("cutscene")), g(25, crc("cutscene")),
+                instr(0x17, 25, 3, 0, crc("isplaying")), instr(0x20, 3, 28, 1, dst)]
+
+    def fase(dst, t1, t2):
+        """rdst = uma fase está num Ultimate Event (FORMA_ULT preenchida e não pelo mod)"""
+        return [g(dst, FORMA_ULT), nil(t1), instr(0x11, dst, t1, t2),
+                g(t1, FORMA_MOD), instr(0x11, dst, t1, t1), instr(0x14, t2, t1, dst)]
+
+    def conta(var, reg, tmp, pfx):             # var = (var ou 0) + 1; reg = var
+        return [g(reg, var), ("se_nao", reg, pfx + "0"), ("vai", pfx + "1"),
+                ("rotulo", pfx + "0"), num(reg, 0), ("rotulo", pfx + "1"),
+                num(tmp, 1), instr(0x0A, reg, tmp, reg), s(reg, var)]
+
+    def maior(reg, limite, dst, tmp):          # rdst = reg > limite
+        return [num(tmp, limite), instr(0x13, reg, tmp, dst)]
+
+    def solta_trava_mod(pfx):                  # solta a trava dos botões, se for do mod
+        return [g(1, TRAVA_MOD), ("se_nao", 1, pfx), nil(6), s(6, TRAVA_INPUT),
+                s(6, TRAVA_MOD), ("rotulo", pfx)]
+
+    def trava_mod():
+        return [sim(6), s(6, TRAVA_INPUT), s(6, TRAVA_MOD)]
+
+    def fim_mod(pfx):
+        """Encerra o estado do mod (o que loadpreultimateform faz, sem chamar a fase:
+        em Roma de dia ela dispara a continuação da fase)."""
+        return [
+            nil(6), s(6, SAINDO), s(6, RESTAURANDO), s(6, ALIEN_MOD),
+            g(1, FORMA_ULT), g(2, FORMA_MOD), instr(0x10, 1, 2, 3), ("se_nao", 3, pfx + "f"),
+            nil(6), s(6, FORMA_ULT),               # só se fui eu que preenchi
+            ("rotulo", pfx + "f"),
+            nil(6), s(6, FORMA_MOD),
+            *solta_trava_mod(pfx + "t"),
+            g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, h_person),
+            instr(0x20, 3, 28, 1, 20),                                  # r20 = person
+            instr(0x17, 20, 22, 0, crc("dontrender")), instr(0x06, 20, 26, 0),
+            instr(0x02, 27, 0, 0), instr(0x20, 22, 26, 2, 23),          # dontrender(falso)
+        ]
+
+    seguro = []   # só transforma se não estiver atacando/interagindo/agarrado/sem movimento
+    for k, metodo in enumerate(("isattacking", "isinteracting", "isstruggling")):
+        seguro += [
+            g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, h_person),
+            instr(0x20, 3, 28, 1, 20),                                  # r20 = person
+            instr(0x17, 20, 21, 0, crc(metodo)), instr(0x06, 20, 22, 0),
+            instr(0x20, 21, 22, 1, 23),                                 # r23 = person.metodo()
+            ("se_nao", 23, "ok%d" % k), RETORNA, ("rotulo", "ok%d" % k),
+        ]
+    seguro += [
+        g(28, h_player), g(25, h_player), instr(0x17, 25, 21, 0, crc("isplayermovementdisabled")),
+        instr(0x20, 21, 28, 1, 23), ("se_nao", 23, "ok_mov"), RETORNA, ("rotulo", "ok_mov"),
+    ]
+
+    def seguro_ou(falha):                      # mesmas checagens, mas pula para "falha"
+        return [("vai", falha) if (isinstance(x, bytes) and x == RETORNA) else x for x in seguro]
+
+    def inicia_rede():
+        if not rede:
+            return []
+        return [
+            nil(16), s(16, REDE_Y), s(16, REDE_POS), s(16, REDE_QUEDA), s(16, REDE_FIRME),
+            g(16, REDE_VIVA), ("se_nao", 16, "rede_liga"),
+            nil(16), s(16, REDE_VIVA),             # a rede que já roda confirma em 1 s
+            ("vai", "rede_fim"),
+            ("rotulo", "rede_liga"),
+            sim(16), s(16, REDE_VIVA), *timer(F_REDE, 1),
+            ("rotulo", "rede_fim"),
+        ]
+
+    def sair_pelo_alien():                     # volta a ser Ben (efeito do jogo) e sai
+        return [sim(6), s(6, SAINDO), nil(6), s(6, ATIVA),
+                g(8, F_SAIR), g(6, FUNC_DESTRANSF), instr(0x20, 6, 8, 1, 7)]
+
+    def remove_ultimate(pfx):                  # tira a Ultimate do mod da memória
+        return [
+            g(8, ALIEN_MOD), ("se_nao", 8, pfx),
+            g(2, h_gform), instr(0x18, 2, 8, 4), instr(0x17, 4, 5, 0, CAMPO_ULT),
+            ("se_nao", 5, pfx),
+            g(3, h_gcur), instr(0x10, 3, 5, 6), ("se_nao", 6, pfx + "r"), ("vai", pfx),
+            ("rotulo", pfx + "r"),
+            instr(0x18, 2, 5, 4), instr(0x17, 4, 11, 0, crc("character")),
+            g(10, CHARMGR), g(7, CHARMGR), instr(0x17, 7, 3, 0, crc("removecharacter")),
+            instr(0x20, 3, 10, 2, 4),
+            ("rotulo", pfx),
+        ]
+
+    f = {}
+    f[F_SELECT] = [                             # SELECT como Ben ou alien normal
+        # direcional ainda não devolvido? devolve antes de tudo
+        g(16, PENDENTE), ("se_nao", 16, "ben"),
+        g(19, SAINDO), g(18, RESTAURANDO), instr(0x15, 19, 18, 19),
+        ("se_nao", 19, "d1"), RETORNA,                      # já está devolvendo
+        ("rotulo", "d1"),
+        *fase(19, 17, 18), ("se_nao", 19, "d2"), RETORNA,   # a fase está no comando
+        ("rotulo", "d2"),
+        nil(18), s(18, ATIVA),                              # (monitor perdido: desliga)
+        *eh_ben(18), ("se_nao", 18, "d_alien"),
+        *chamar0(F_SAIR), RETORNA,
+        ("rotulo", "d_alien"),
+        *chamar0(F_SAIR_SEGURO), RETORNA,
+        # Ben: tela de troca de aliens, como no jogo original (se puder transformar)
+        ("rotulo", "ben"),
+        *eh_ben(18), ("se_nao", 18, "alien"),
+        g(28, h_player), g(25, h_player), instr(0x17, 25, 21, 0, crc("isabletotransform")),
+        instr(0x20, 21, 28, 1, 23), ("se_nao", 23, "fim"),
+        g(28, crc("overlay")), g(29, crc("characterpresetscreen_enter")), g(25, crc("overlay")),
+        instr(0x17, 25, 3, 0, crc("runuser")), instr(0x20, 3, 28, 2, 4),
+        g(28, 0x23F332A3), g(25, 0x801B4AF7), instr(0x20, 25, 28, 1, 3),
+        RETORNA,
+        ("rotulo", "alien"),                                # alien: entra na Ultimate
+        *chamar0(F_ENTRAR),
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
+    f[F_ENTRAR] = [
+        g(2, h_gform), g(3, h_gcur), instr(0x18, 2, 3, 4), instr(0x17, 4, 5, 0, CAMPO_ULT),
+        ("se_nao", 5, "fim"),             # sem Ultimate (Tartagira, Gigante...): nada
+        g(6, FORMA_ULT), ("se_nao", 6, "e1"), ("vai", "fim"),   # evento de fase: a fase manda
+        ("rotulo", "e1"),
+        g(6, PENDENTE), ("se_nao", 6, "e2"), ("vai", "fim"),
+        ("rotulo", "e2"),
+        *seguro,
+        g(3, h_gcur), s(3, ALIEN_MOD),
+        *trava_mod(),                     # botões travados durante o carregamento
+        *conta(VIGIAS, 4, 5, "vg"),
+        *timer(F_VIGIA, 15),
+        g(8, F_CARREGAR), g(6, VOLTAR_BEN), instr(0x20, 6, 8, 1, 7),   # Ben, depois carregar
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
+    f[F_CARREGAR] = [                           # já como Ben
+        g(8, ALIEN_MOD), ("se_nao", 8, "cancela"),
+        g(6, FORMA_ULT), ("se_nao", 6, "segue"), ("vai", "cancela"),   # uma fase começou
+        ("rotulo", "segue"),
+        g(16, PENDENTE), ("se_nao", 16, "guarda"), ("vai", "carrega"),
+        ("rotulo", "guarda"),                   # guarda o direcional só uma vez
+        *chamar0(GUARDAR_DIRECIONAL),
+        g(16, BACKUP_JOGO), s(16, COPIA_DIRECIONAL),    # a cópia fica só com o mod
+        nil(16), s(16, BACKUP_JOGO), sim(16), s(16, PENDENTE),
+        ("rotulo", "carrega"),
+        g(8, ALIEN_MOD), g(2, h_gform), instr(0x18, 2, 8, 4), instr(0x17, 4, 9, 0, CAMPO_ULT),
+        nil(10), nil(11), g(12, F_PRONTO),
+        g(6, PRECARREGAR), instr(0x20, 6, 8, 5, 7),     # carrega alien + Ultimate
+        RETORNA,
+        ("rotulo", "cancela"),
+        *solta_trava_mod("c1"), nil(6), s(6, ALIEN_MOD),
+        RETORNA,
+    ]
+    f[F_PRONTO] = [                             # carregou
+        g(8, ALIEN_MOD), ("se_nao", 8, "cancela"),
+        g(6, FORMA_ULT), ("se_nao", 6, "segue"), ("vai", "cancela"),
+        ("rotulo", "segue"),
+        g(6, VIRAR_ALIEN), instr(0x20, 6, 8, 1, 7),     # vira o alien
+        *timer(F_ATIVAR, 1),
+        RETORNA,
+        ("rotulo", "cancela"),
+        *solta_trava_mod("c1"),
+        RETORNA,
+    ]
+    f[F_ATIVAR] = [                             # 1 s depois de virar o alien
+        g(8, ALIEN_MOD), ("se_nao", 8, "fim"),          # entrada cancelada: nada
+        sim(19), s(19, ATIVA), num(19, 0), s(19, ESPERA), s(19, PARADO), nil(19), s(19, BATIDA),
+        *timer(F_MONITOR, 1.5),                         # o monitor devolve se algo falhar
+        *inicia_rede(),
+        g(6, FORMA_ULT), ("se_nao", 6, "a1"), ("vai", "aborta"),
+        ("rotulo", "a1"),
+        g(8, ALIEN_MOD), g(3, h_gcur), instr(0x10, 3, 8, 4), ("se_nao", 4, "aborta"),
+        g(2, h_gform), instr(0x18, 2, 8, 5), instr(0x17, 5, 6, 0, CAMPO_ULT),
+        ("se_nao", 6, "aborta"),
+        # o mesmo que a função da Ultimate do jogo faz no evento (sem mexer nela)
+        s(8, FORMA_ULT), s(8, FORMA_MOD),
+        *trava_mod(),
+        *chamar0(crc("switch_to_ultimate")),
+        RETORNA,
+        ("rotulo", "aborta"),
+        *solta_trava_mod("ab"),
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
+    f[F_MONITOR] = [                            # a cada 1,5 s com a Ultimate do mod
+        g(1, ATIVA), ("se_nao", 1, "fim"),
+        *e_especial(15, 14), ("se_nao", 15, "acabou"),
+        g(2, BATIDA), ("se_nao", 2, "parado"),          # a roda continua rodando?
+        nil(2), s(2, BATIDA), num(2, 0), s(2, PARADO), ("vai", "rearma"),
+        ("rotulo", "parado"),                           # ~4,5 s sem resposta: destrava
+        *conta(PARADO, 4, 5, "p"), *maior(4, 3, 7, 6), ("se_nao", 7, "rearma"),
+        num(2, 0), s(2, PARADO), *chamar0(F_DESTRAVA),
+        ("rotulo", "rearma"),
+        *timer(F_MONITOR, 1.5),
+        RETORNA,
+        ("rotulo", "acabou"),
+        *chamar0(F_FIM),
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
+    f[F_FIM] = [                                # a Ultimate acabou sem o SELECT
+        g(1, PENDENTE), ("se_nao", 1, "nada"),          # nada a devolver
+        g(1, SAINDO), g(2, RESTAURANDO), instr(0x15, 1, 2, 1),
+        ("se_nao", 1, "f1"),
+        ("rotulo", "nada"),
+        nil(6), s(6, ATIVA), RETORNA,                   # (a saída já está em andamento)
+        ("rotulo", "f1"),
+        *fase(1, 2, 3), ("se_nao", 1, "f2"), ("vai", "espera"),   # evento da fase: espera
+        ("rotulo", "f2"),
+        *conta(ESPERA, 4, 5, "e"),
+        # o jogo no meio de uma troca (trava que não é do mod): espera até ~9 s
+        g(1, TRAVA_INPUT), g(2, TRAVA_MOD), instr(0x0F, 2, 2, 0), instr(0x14, 1, 2, 1),
+        g(2, TRANSF_EM_CURSO), instr(0x15, 1, 2, 3),
+        ("se_nao", 3, "sem_trava"),
+        *maior(4, 6, 7, 6), ("se_nao", 7, "espera"), ("vai", "age"),
+        ("rotulo", "sem_trava"),
+        # FORMA_ULT ainda com o alien do mod: pode ser uma fase começando um evento com
+        # o mesmo alien. Espera ~4,5 s (a fase entrega o direcional nesse tempo).
+        g(1, FORMA_ULT), ("se_nao", 1, "age"),
+        *maior(4, 2, 7, 6), ("se_nao", 7, "espera"), ("vai", "age"),
+        ("rotulo", "espera"),
+        *timer(F_MONITOR, 1.5),
+        RETORNA,
+        ("rotulo", "age"),
+        nil(19), s(19, ATIVA),
+        *eh_ben(18), ("se_nao", 18, "alien"),
+        *chamar0(F_SAIR), RETORNA,
+        ("rotulo", "alien"),
+        *sair_pelo_alien(),
+        *conta(VIGIAS_SAIDA, 4, 5, "vs"), *timer(F_VIGIA_SAIDA, 10),
+        RETORNA,
+    ]
+    f[F_SAIR] = [                               # já como Ben: devolve o direcional
+        g(1, RESTAURANDO), ("se_nao", 1, "segue"), RETORNA,
+        ("rotulo", "segue"),
+        sim(6), s(6, SAINDO), nil(6), s(6, ATIVA),
+        nil(6), s(6, TRANSF_EM_CURSO),          # (a volta para o Ben com callback do mod
+                                                #  não desliga essa trava)
+        *remove_ultimate("rm"),
+        g(16, PENDENTE), ("se_nao", 16, "nada"),
+        sim(6), s(6, RESTAURANDO),
+        *trava_mod(),                           # direcional parado durante o carregamento
+        g(6, COPIA_DIRECIONAL), ("se_nao", 6, "sem_copia"), s(6, BACKUP_JOGO),
+        ("rotulo", "sem_copia"),
+        g(20, F_DEVOLVIDO), g(6, RESTAURAR_DIRECIONAL), instr(0x20, 6, 20, 1, 7),
+        *conta(VIGIAS_SAIDA, 4, 5, "vs"), *timer(F_VIGIA_SAIDA, 10),
+        RETORNA,
+        ("rotulo", "nada"),                     # nada a devolver: só finaliza
+        *fim_mod("n"),
+        RETORNA,
+    ]
+    f[F_DEVOLVIDO] = [                          # direcional de volta
+        nil(6), s(6, PENDENTE), s(6, COPIA_DIRECIONAL), num(6, 0), s(6, FALHAS),
+        *fim_mod("d"),
+        RETORNA,
+    ]
+    f[F_SAIR_SEGURO] = [                        # sai se for seguro; SELECT segurado
+        g(1, SAINDO), g(2, RESTAURANDO), instr(0x15, 1, 2, 1),      # (~1,5 s) sai mesmo
+        ("se_nao", 1, "checa"), RETORNA,                            # assim
+        ("rotulo", "checa"),
+        *seguro_ou("recusa"),
+        ("rotulo", "forca"),
+        num(4, 0), s(4, RECUSAS),
+        *sair_pelo_alien(),
+        *conta(VIGIAS_SAIDA, 4, 5, "vs"), *timer(F_VIGIA_SAIDA, 10),
+        RETORNA,
+        ("rotulo", "recusa"),                   # o jogo diz que está ocupado (ex.: depois
+        *conta(RECUSAS, 4, 5, "r"),             # do ataque especial fica "atacando")
+        *maior(4, 40, 7, 6), ("se_nao", 7, "espera"), ("vai", "forca"),
+        ("rotulo", "espera"),
+        RETORNA,
+    ]
+    f[F_VIGIA] = [                              # 15 s após entrar
+        g(4, VIGIAS), ("se_nao", 4, "v0"), num(5, 1), instr(0x0B, 4, 5, 4), s(4, VIGIAS),
+        num(5, 0), instr(0x13, 4, 5, 7), ("se_nao", 7, "v0"), RETORNA,   # há uma entrada mais nova
+        ("rotulo", "v0"),
+        num(4, 0), s(4, VIGIAS),
+        g(1, SAINDO), g(2, RESTAURANDO), instr(0x15, 1, 2, 1), ("se_nao", 1, "v1"), RETORNA,
+        ("rotulo", "v1"),
+        g(1, TRAVA_MOD), g(2, TRAVA_INPUT), instr(0x14, 1, 2, 1), ("se_nao", 1, "fim"),
+        nil(6), s(6, TRAVA_INPUT), s(6, TRAVA_MOD), s(6, TRANSF_EM_CURSO),   # entrada empacou
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
+    f[F_VIGIA_SAIDA] = [                        # 10 s após sair
+        g(4, VIGIAS_SAIDA), ("se_nao", 4, "v0"), num(5, 1), instr(0x0B, 4, 5, 4),
+        s(4, VIGIAS_SAIDA), num(5, 0), instr(0x13, 4, 5, 7), ("se_nao", 7, "v0"), RETORNA,
+        ("rotulo", "v0"),
+        num(4, 0), s(4, VIGIAS_SAIDA),
+        g(1, RESTAURANDO), g(2, SAINDO), instr(0x15, 1, 2, 1), ("se_nao", 1, "fim"),
+        nil(6), s(6, RESTAURANDO), s(6, SAINDO), s(6, TRANSF_EM_CURSO),   # empacou
+        *solta_trava_mod("st"),
+        *conta(FALHAS, 4, 5, "fa"),
+        *e_especial(15, 14), ("se_nao", 15, "fim"),
+        # continua na Ultimate (a volta para o Ben não aconteceu): religa o monitor
+        sim(6), s(6, ATIVA), num(6, 0), s(6, PARADO), s(6, ESPERA),
+        *timer(F_MONITOR, 1.5),
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
+    f[F_DESTRAVA] = [                           # Ultimate do mod sem resposta
+        *cena(4), ("se_nao", 4, "solta"), RETORNA,      # cena do jogo: as travas são dele
+        ("rotulo", "solta"),
+        nil(6), s(6, TRAVA_INPUT), s(6, TRAVA_MOD), s(6, TRANSF_EM_CURSO),
+        RETORNA,
+    ]
+    f[F_RODA] = [                               # roda do canto (r0, r1, r2): sempre repassa
+        nil(16), s(16, TRAVA_MOD),              # aqui os botões estão livres: trava do mod
+        num(16, 0), s(16, QUADROS_TRAVA),       # nenhuma, contador da trava zerado
+        *e_especial(15, 14), ("se_nao", 15, "normal"),
+        sim(16), s(16, BATIDA),                 # "estou vivo" (para o monitor)
+        g(16, PENDENTE), ("se_nao", 16, "repassa"),     # Ultimate de evento da fase: não mexe
+        instr(0x17, 0, 16, 0, crc("btn_select")), ("se_nao", 16, "repassa"),
+        *chamar0(F_SAIR_SEGURO),
+        ("vai", "repassa"),
+        ("rotulo", "normal"),                   # Ben/alien: direcional ainda pendente?
+        g(16, PENDENTE), ("se_nao", 16, "zera"),
+        *fase(19, 17, 18), ("se_nao", 19, "n1"), ("vai", "zera"),   # evento da fase
+        ("rotulo", "n1"),
+        g(19, ATIVA), g(18, SAINDO), instr(0x15, 19, 18, 19), g(18, RESTAURANDO),
+        instr(0x15, 19, 18, 19), ("se_nao", 19, "auto"),
+        # o monitor/devolução deviam cuidar; se ficou parado ~15 s, assume que se perdeu
+        *conta(QUADROS, 4, 5, "q"), *maior(4, LIMITE_QUADROS, 7, 6), ("se_nao", 7, "repassa"),
+        nil(6), s(6, ATIVA), s(6, SAINDO), s(6, RESTAURANDO),
+        ("rotulo", "auto"),
+        g(4, FALHAS), ("se_nao", 4, "a1"), *maior(4, 2, 7, 6), ("se_nao", 7, "a1"),
+        ("vai", "zera"),                        # 3 devoluções empacaram: só pelo SELECT
+        ("rotulo", "a1"),
+        num(4, 0), s(4, QUADROS),
+        *eh_ben(18), ("se_nao", 18, "a_alien"),
+        *chamar0(F_SAIR), ("vai", "repassa"),
+        ("rotulo", "a_alien"),
+        *chamar0(F_SAIR_SEGURO), ("vai", "repassa"),
+        ("rotulo", "zera"),
+        num(4, 0), s(4, QUADROS),
+        ("rotulo", "repassa"),
+        instr(0x06, 0, 20, 0), instr(0x06, 1, 21, 0), instr(0x06, 2, 22, 0),
+        g(23, ORIG_RODA), instr(0x20, 23, 20, 3, 24),
+        RETORNA,
+    ]
+    f[F_ZONA] = [                               # câmera fixa (o jogo tira o controle de troca)
+        *e_especial(15, 14), ("se_nao", 15, "fim"),
+        sim(16), s(16, BATIDA),
+        g(16, PENDENTE), ("se_nao", 16, "fim"),         # só a Ultimate do mod
+        instr(0x17, 0, 16, 0, crc("btn_select")), ("se_nao", 16, "fim"),
+        *chamar0(F_SAIR_SEGURO),
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
+    f[F_QUADRO] = [                             # r0 = outro motivo (cena, morto, câmera...)
+        ("se_nao", 0, "q1"), ("vai", "zera"),
+        ("rotulo", "q1"),
+        g(1, TRANSF_EM_CURSO), g(2, TRAVA_INPUT), g(3, TRAVA_MOD), instr(0x14, 2, 3, 3),
+        instr(0x15, 1, 3, 4), ("se_nao", 4, "livre"),   # transformação ou trava do mod
+        *conta(QUADROS_TRAVA, 4, 5, "c"), *maior(4, LIMITE_QUADROS, 7, 6),
+        ("se_nao", 7, "fim"),
+        # presa há ~15 s com o jogo rodando: solta (o que estava em andamento se perdeu)
+        nil(6), s(6, TRANSF_EM_CURSO), s(6, SAINDO), s(6, RESTAURANDO),
+        *solta_trava_mod("st"),
+        ("vai", "zera"),
+        ("rotulo", "livre"),
+        g(2, TRAVA_INPUT), ("se_nao", 2, "l1"), ("vai", "zera"),
+        ("rotulo", "l1"),
+        nil(6), s(6, TRAVA_MOD),               # o jogo soltou a trava: não é mais do mod
+        ("rotulo", "zera"),
+        num(4, 0), s(4, QUADROS_TRAVA),
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
+    f[F_REDE] = [                               # a cada 1 s, só com o mod em ação
+        sim(1), s(1, REDE_VIVA),
+        g(1, PENDENTE), g(2, ATIVA), instr(0x15, 1, 2, 1), ("se_nao", 1, "desliga"),
+        g(1, MORTO), ("se_nao", 1, "vivo"), ("vai", "agenda"),   # morreu: o jogo cuida
+        ("rotulo", "vivo"),
+        *cena(4), ("se_nao", 4, "jogo"),
+        nil(6), s(6, REDE_Y), s(6, REDE_QUEDA), ("vai", "agenda"),
+        ("rotulo", "jogo"),
+        g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, crc("position")),
+        instr(0x20, 3, 28, 1, 20),              # r20 = posição
+        instr(0x17, 20, 21, 0, crc("y")),       # r21 = altura agora
+        g(22, REDE_Y), s(21, REDE_Y),           # r22 = altura antes
+        ("se_nao", 22, "agenda"),
+        num(23, 4), instr(0x0A, 21, 23, 24), instr(0x13, 22, 24, 5),   # caiu mais de 4 em 1 s?
+        ("se_nao", 5, "firme"),
+        nil(6), s(6, REDE_FIRME),
+        *conta(REDE_QUEDA, 4, 6, "q"), *maior(4, 3, 7, 6),            # 4 s seguidos caindo
+        ("se_nao", 7, "agenda"),
+        nil(6), s(6, REDE_QUEDA), s(6, REDE_Y),
+        g(29, REDE_POS), ("se_nao", 29, "agenda"),
+        g(28, crc("playermgr")), g(25, crc("playermgr")),
+        instr(0x17, 25, 3, 0, crc("beam")), instr(0x20, 3, 28, 2, 4),   # volta ao seguro
+        ("vai", "agenda"),
+        ("rotulo", "firme"),
+        nil(6), s(6, REDE_QUEDA),
+        instr(0x0A, 22, 23, 24), instr(0x13, 21, 24, 5),              # subindo (pulo)?
+        ("se_nao", 5, "parado"),
+        nil(6), s(6, REDE_FIRME), ("vai", "agenda"),
+        ("rotulo", "parado"),
+        g(4, REDE_FIRME), ("se_nao", 4, "primeira"),   # 2 conferidas firme: lugar seguro
+        s(20, REDE_POS), ("vai", "agenda"),
+        ("rotulo", "primeira"),
+        sim(6), s(6, REDE_FIRME),
+        ("rotulo", "agenda"),
+        *timer(F_REDE, 1),
+        RETORNA,
+        ("rotulo", "desliga"),                  # o mod terminou: a rede para
+        nil(1), *[s(1, v) for v in (REDE_VIVA, REDE_Y, REDE_POS, REDE_QUEDA, REDE_FIRME)],
+        RETORNA,
+    ]
+    if not rede:
+        del f[F_REDE]
+    return {h: montar(itens) for h, itens in f.items()}
+
+
+def cmd_ultimate_livre(origem, destino, rede=True):
+    d0 = open(origem, "rb").read()
+    d, tirou = remover_mod(d0)
+    if tirou:
+        print("  (o arquivo já tinha o mod: %d funções do fim retiradas antes)" % tirou)
+    ops, funcs = ler(d)
+    conferir_original(d, ops, funcs)
+    print("  globals.ds original: %d funções (nenhuma é alterada)" % len(funcs))
+
+    novas = []
+    for h, corpo in funcoes_do_mod(rede).items():
+        novas.append((h, NPAR_MOD.get(h, 0), b"".join(corpo)))
+    print("  %d funções novas do mod (nomes luis_f_...)" % len(novas))
+    corpo, npar = ajustar_switch_form_update(d, funcs)
+    novas.append((H_UPD, npar, corpo))
+    print("  switch_form_update: SELECT -> mod, roda -> mod, direcional original")
+    corpo, npar = ajustar_guardar_direcional(d, funcs)
+    novas.append((GUARDAR_DIRECIONAL, npar, corpo))
+    print("  guardar direcional: entrega a cópia certa se uma fase começar um evento")
+    for hz in ZONAS_CAMERA:
+        corpo, npar = ajustar_zona(d, funcs, hz)
+        novas.append((hz, npar, corpo))
+    print("  câmera fixa: SELECT ainda sai da Ultimate do mod (%d)" % len(ZONAS_CAMERA))
+
+    saida = bytearray(d)
+    for h, npar, corpo in novas:
+        saida += registro(h, npar, corpo)
+    struct.pack_into("<I", saida, 4, struct.unpack_from("<I", saida, 4)[0] + len(novas))
+    ler(bytes(saida))  # confere se o script continua válido
+    if bytes(saida[:len(d)]) != d[:4] + struct.pack("<I", len(funcs) + 1 + len(novas)) + d[8:]:
+        raise ValueError("o começo do arquivo mudou (não devia)")
+    with open(destino, "wb") as fo:
+        fo.write(saida)
+    print("%s criado (%d bytes; original %d + %d do mod no fim)" % (
+        destino, len(saida), len(d), len(saida) - len(d)))
+
+
+def cmd_verificar_funcoes(iso, saida):
+    """Procura, em TODOS os arquivos do jogo, referências às funções do globals.ds
+    (e aos nomes novos do mod, que não podem aparecer em lugar nenhum)."""
+    import re
+    import cd_analisador as A
+    with open(iso, "rb") as f:
+        magic = f.read(4)
+    leitor = A.LeitorCSO(iso) if magic == b"CISO" else A.LeitorISO(iso)
+    lista = A.listar_iso(leitor)
+
+    def ler_item(item):
+        _, lba, tam = item
+        return leitor.ler(lba * A.SETOR, tam)
+
+    g = [it for it in lista if it[0].lower().endswith("global/scripts/globals.ds")]
+    if len(g) != 1:
+        raise ValueError("não achei global/scripts/globals.ds na ISO")
+    d = ler_item(g[0])
+    ops, funcs = ler(d)
+    cand = [f for f in funcs if d.count(struct.pack("<I", f[1])) == 1]
+    padroes = {f[1]: struct.pack("<I", f[1]) for f in cand}
+    nomes_mod = {}
+    for nome in list(globals()):
+        v = globals()[nome]
+        if isinstance(v, int) and v in set(FUNCOES_MOD) | set(VARIAVEIS_MOD):
+            nomes_mod[v] = nome
+    for h in nomes_mod:
+        padroes[h] = struct.pack("<I", h)
+    refs = {h: [] for h in padroes}
+    pular = (".pmf", ".at3", ".fsb", ".fev", ".png", ".ttf", ".sfo")
+    alvo = [it for it in lista if not it[0].lower().endswith(pular)
+            and not it[0].lower().endswith(("global/scripts/globals.ds", "global/scripts/e3global.ds"))
+            and "/SYSDIR/" not in it[0].upper()]
+    print("Procurando %d nomes em %d arquivos (pode levar alguns minutos)..." % (len(padroes), len(alvo)))
+    for k, it in enumerate(alvo):
+        dados = ler_item(it)
+        nome_arq = it[0].replace("PSP_GAME/USRDIR/", "")
+        for h, pk in padroes.items():
+            n = dados.count(pk)
+            if n:
+                refs[h].append("%s:%d" % (nome_arq, n))
+        # referência pelo NOME (texto): o jogo calcula o hash na hora
+        for txt in set(re.findall(rb"[A-Za-z_][A-Za-z0-9_]{2,63}", dados)):
+            h = zlib.crc32(txt.lower())
+            if h in padroes:
+                refs[h].append("%s:nome=%s" % (nome_arq, txt.decode()))
+        if k % 50 == 0:
+            print("  %d/%d" % (k, len(alvo)))
+    choques = [h for h in nomes_mod if refs[h]]
+    with open(saida, "w") as f:
+        f.write("# funcao npar palavras referencias\n")
+        for fn in cand:
+            f.write("%08x %d %d %s\n" % (fn[1], fn[2], (fn[3] - fn[0]) // 4 - 4,
+                                          " ".join(refs[fn[1]]) or "-"))
+        f.write("# nomes novos do mod (precisam ficar sem referência)\n")
+        for h, nome in sorted(nomes_mod.items(), key=lambda x: x[1]):
+            f.write("%08x mod %s %s\n" % (h, nome, " ".join(refs[h]) or "-"))
+    livres = sum(1 for h in refs if not refs[h] and h not in nomes_mod)
+    print("%s criado: %d funções do jogo sem nenhuma referência" % (saida, livres))
+    if choques:
+        print("ATENÇÃO: %d nomes do mod aparecem no jogo: %s" % (
+            len(choques), ", ".join(nomes_mod[h] for h in choques)))
+    else:
+        print("Nomes do mod: nenhum aparece nos arquivos do jogo (sem conflito)")
+
+
+FLAGS_ESPECIAL_ULT = (0x41EB0, 0x41E30, 0x41EBC, 0x51EB4, 0x41E34, 0x55EB4, 0x41E3C)
+
+
+def cmd_especiais_ultimate(pasta_origem, pasta_destino):
+    """Experimento: os golpes especiais das Ultimates não têm o bit 0x4 que todos
+    os especiais dos aliens normais têm (ex.: Humungossauro 0x41eb4, Ultimate
+    0x41eb0). Liga esse bit nos especiais das 5 Ultimates (atk_u?.ddf)."""
+    for nome in ("atk_ub", "atk_ue", "atk_uf", "atk_uh", "atk_us"):
+        d = bytearray(open(os.path.join(pasta_origem, nome + ".ddf"), "rb").read())
+        n = 0
+        for i in range(0, len(d) - 3, 4):
+            v = struct.unpack_from("<I", d, i)[0]
+            if v in FLAGS_ESPECIAL_ULT:
+                if not v & 4:
+                    struct.pack_into("<I", d, i, v | 4)
+                n += 1
+        if n != 4:
+            raise ValueError("%s: esperava 4 especiais, achei %d (arquivo diferente?)" % (nome, n))
+        os.makedirs(pasta_destino, exist_ok=True)
+        with open(os.path.join(pasta_destino, nome + ".ddf"), "wb") as f:
+            f.write(d)
+        print("  %s.ddf: 4 especiais ajustados" % nome)
 
 
 def cmd_gerar_nomes(eboot, pasta, destino):
@@ -579,12 +1153,17 @@ def main():
             cmd_desmontar(a[1], a[2], nomes)
         elif len(a) == 4 and a[0] == "gerar-nomes":
             cmd_gerar_nomes(a[1], a[2], a[3])
-        elif len(a) == 3 and a[0] == "ultimate-livre":
-            cmd_ultimate_livre(a[1], a[2])
-        elif len(a) == 4 and a[0] == "rastreio" and a[1] in ("1", "2", "3", "4"):
-            cmd_ultimate_livre(a[2], a[3], rastreio=int(a[1]))
-        elif len(a) == 3 and a[0] == "diagnostico-select":
-            cmd_ultimate_livre(a[1], a[2], diagnostico=True)
+        elif len(a) >= 3 and a[0] == "ultimate-livre":
+            opc = a[3:]
+            cmd_ultimate_livre(a[1], a[2], rede="--sem-rede" not in opc)
+            if "--sem-rede" in opc:
+                print("  (rede de segurança desligada)")
+            if "--funcoes" in opc:
+                print("  (--funcoes não é mais necessário: o mod não usa funções do jogo)")
+        elif len(a) == 3 and a[0] == "verificar-funcoes":
+            cmd_verificar_funcoes(a[1], a[2])
+        elif len(a) == 3 and a[0] == "especiais-ultimate":
+            cmd_especiais_ultimate(a[1], a[2])
         else:
             print(__doc__)
             sys.exit(1)

@@ -16,6 +16,17 @@ No jogo original, a forma Ultimate só aparece nos Ultimate Events de algumas fa
 | Como Ben depois que a Ultimate acabou sozinha | Restaura os aliens do direcional |
 
 Aliens com forma Ultimate: Humungossauro, Aranha Macaca, Gelo Fumaça, Eco Eco e Fogo Fátuo.
+Na Ultimate, a roda do canto mostra os golpes especiais (como nos eventos do jogo).
+
+### Como funciona
+
+O mod **não altera nenhuma função do jogo**. Ele acrescenta funções novas no fim do `globals.ds` (nomes `luis_f_...`) e cópias ajustadas de 4 funções do jogo, que valem no lugar das originais (o carregador do EBOOT registra as funções em ordem e a última com o mesmo nome vence):
+
+- `switch_form_update`: SELECT chama o mod e a roda do canto passa pelo mod. O direcional continua o do jogo.
+- A função que guarda o direcional: se uma fase começar um Ultimate Event no meio da Ultimate do mod, ela recebe os seus aliens verdadeiros.
+- As 2 funções das áreas de câmera fixa: SELECT ainda sai da Ultimate do mod.
+
+Os Ultimate Events das fases funcionam como no jogo original. Vigias soltam travas presas e devolvem o direcional sozinhos, e uma rede de segurança puxa o jogador de volta se ele cair no vazio enquanto o mod está em ação (`--sem-rede` desliga).
 
 ### Como aplicar
 
@@ -23,7 +34,7 @@ Aliens com forma Ultimate: Humungossauro, Aranha Macaca, Gelo Fumaça, Eco Eco e
 # 1. extrair o script global do jogo
 python cd_analisador.py jogo.iso --extrair extraido --so "*scripts/globals.ds"
 
-# 2. aplicar o mod
+# 2. aplicar o mod (sempre a partir do globals.ds ORIGINAL)
 python cd_scripts.py ultimate-livre extraido/PSP_GAME/USRDIR/global/scripts/globals.ds globals_mod.ds
 
 # 3. montar a pasta do mod e gerar a ISO nova
@@ -32,14 +43,15 @@ cp globals_mod.ds mod/global/scripts/globals.ds
 python cd_iso.py jogo.iso jogo_ultimate.iso mod
 ```
 
-Abra `jogo_ultimate.iso` no PPSSPP. A ISO original nunca é alterada.
+Abra `jogo_ultimate.iso` no PPSSPP. A ISO original nunca é alterada. O `globals.ds` modificado fica uns 7,6 KB maior; o `cd_iso.py` coloca ele no fim da ISO.
 
 ### Dicas e limitações
 
-- Transforme e volte para o Ben **parado, no chão, em lugares abertos**. Fora das arenas dos eventos, a troca do modelo grande da Ultimate pode fazer o personagem atravessar o cenário perto de paredes e beiradas.
-- Use os **save states do PPSSPP** antes de transformar.
-- A transformação só começa se o personagem não estiver atacando, interagindo, agarrado ou com o movimento bloqueado. Se o SELECT não responder, pare e tente de novo.
-- Durante a Ultimate, a roda do canto mostra o alien normal, a Ultimate e dois espaços vazios (é o que o carregamento do jogo coloca no direcional). Ao sair com SELECT, tudo volta ao normal.
+- **Não teste com save states do PPSSPP**: eles guardam na memória o script da versão anterior. Abra o jogo e carregue o save do próprio jogo.
+- A transformação só começa se o personagem não estiver atacando, interagindo, agarrado ou com o movimento bloqueado. Se o jogo ficar "ocupado", segure SELECT para sair da Ultimate.
+- Durante a Ultimate, o direcional fica com o alien normal e a Ultimate (é o que o carregamento do jogo coloca). Ao sair, tudo volta ao normal.
+- Tartagira e aliens sem Ultimate: SELECT não faz nada.
+- Opcional: `python cd_scripts.py verificar-funcoes jogo.iso relatorio.txt` confere se algum nome usado pelo mod aparece nos arquivos do jogo.
 
 ## Ferramentas
 
