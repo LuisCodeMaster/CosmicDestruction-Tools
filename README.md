@@ -4,6 +4,35 @@ Kit de modding para **Ben 10 Ultimate Alien: Cosmic Destruction** (PSP, ULUS-105
 
 > Projeto de fã, não oficial. Este repositório **não contém nenhum arquivo do jogo**: todas as ferramentas trabalham sobre a **sua própria cópia** (ISO/CSO).
 
+## Jeito mais fácil: o menu do kit
+
+```
+python cd_kit.py "Ben 10 - Ultimate Alien - Cosmic Destruction (USA).iso"
+```
+
+Você liga ou desliga cada parte do mod pelo número e aperta **M**. O kit extrai da sua ISO só o que precisa
+(fica em `cd_trabalho/`), monta tudo e gera `nome do jogo (Mod).iso`. A ISO original não é alterada.
+
+| Parte do mod | O que faz | Estado |
+|---|---|---|
+| Ultimate a qualquer momento | SELECT vira a Ultimate do alien atual | testado no jogo |
+| Ultimates interagindo | caixas, beiradas, cair e apanhar sem travar (animações copiadas do alien normal) | testado (caixa) |
+| Animação de transformação | na 1ª Ultimate de cada alien em cada fase | testado, ajustado |
+| Gritos das Ultimates | "Ultimate Humungousaur!" em qualquer fase | experimental |
+| Gigante | Tartagira + SELECT vira o Gigante em qualquer fase | experimental |
+| Ben com golpes do Gigante | combo, especiais no R + botão (roda de especiais), R + SELECT = Ben gigante | combo e especiais testados |
+
+O estado detalhado de cada recurso está em [docs/estado.md](docs/estado.md).
+
+## Documentação
+
+- [docs/formatos.md](docs/formatos.md): manual de todos os formatos do jogo (scripts, pacotes, animações, esqueletos, golpes, vozes).
+- [docs/estado.md](docs/estado.md): o que já foi testado no jogo.
+- [docs/historico.md](docs/historico.md): por que as coisas são como são.
+- [docs/pendencias.md](docs/pendencias.md): o que falta e o próximo passo de cada item.
+- [docs/como_pedir.md](docs/como_pedir.md): como pedir mudanças para uma IA sem perder o que já foi feito.
+- [CLAUDE.md](CLAUDE.md): regras do projeto para quem (pessoa ou IA) vai continuar.
+
 ## Mod principal: Ultimate a qualquer momento
 
 No jogo original, a forma Ultimate só aparece nos Ultimate Events de algumas fases. Com o mod:
@@ -69,7 +98,10 @@ Todas usam só a biblioteca padrão do Python 3.8+. Rode qualquer uma sem argume
 
 | Ferramenta | Para quê |
 |---|---|
-| `instalar_mod.py` | Instala o mod Ultimate sozinho: ISO/CSO original → ISO nova com o mod |
+| `cd_kit.py` | Menu que junta tudo: extrai, monta cada parte do mod e gera a ISO nova |
+| `instalar_mod.py` | Instala só o mod Ultimate: ISO/CSO original → ISO nova com o mod |
+| `cd_anims.py` | Pacotes `.psp`: copia e redireciona animações entre personagens, monta o Gigante e o Ben com golpes |
+| `cd_vozes.py` | Coloca os gritos das Ultimates nos bancos de voz e scripts de voz de todas as fases |
 | `cd_analisador.py` | Lista e identifica os arquivos da ISO/CSO e extrai arquivos escolhidos (`--extrair`, `--so`) |
 | `cd_iso.py` | Coloca arquivos modificados numa cópia da ISO (no lugar ou no fim, atualizando o índice) |
 | `cd_scripts.py` | Desmonta os scripts compilados `.ds`, aplica o mod `ultimate-livre`, gera a lista de nomes |
@@ -103,6 +135,15 @@ python cd_analisador.py jogo.iso
 - **`psp_*.txt`**: `[hash][tamanho][texto\0]` repetido.
 - **`.psp` (spav)**: contêiner com blocos tipados; bloco 0 = texturas 8 bits com paleta de 256 cores e swizzle do PSP.
 - **`.ds`**: bytecode de uma máquina virtual de registradores. Funções `21 00 00 00 | hash | nº parâmetros | tamanho`, instruções de 4 bytes (algumas com +4). Detalhes no cabeçalho de `cd_scripts.py`.
+
+## Testes
+
+```
+python testes/testes.py      # o mod rodando num simulador da máquina dos scripts
+python testes/mutantes.py    # versões quebradas de propósito: os testes têm de pegar todas
+```
+
+Os testes usam o `globals.ds` e o `gld_psp.ds` originais extraídos pelo `cd_kit.py` (ou a pasta da variável `CD_SCRIPTS`).
 
 ## O que não colocar aqui
 

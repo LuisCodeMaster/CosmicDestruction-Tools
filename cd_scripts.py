@@ -14,7 +14,11 @@ COMANDOS
   Aplicar o mod "Ultimate a qualquer momento" (sempre a partir do globals.ds ORIGINAL;
   se você passar um arquivo que já tem ESTA versão do mod, ele é tirado antes):
     python cd_scripts.py ultimate-livre globals.ds globals_mod.ds
-    (--sem-rede desliga a rede de segurança contra quedas)
+    (--sem-rede desliga a rede de segurança contra quedas;
+     --sem-habilidades deixa as Ultimates só com as habilidades originais;
+     --gigante liga Tartagira -> Gigante; precisa do g_wayb.psp do cd_anims.py --gigante;
+     --ben-gigante: segurando o botão de especiais como Ben, a roda mostra os golpes do Gigante;
+     --sem-intro: sem a animação de transformação na 1ª Ultimate de cada fase)
 
   Conferir na ISO se algum nome usado pelo mod já existe no jogo (opcional):
     python cd_scripts.py verificar-funcoes jogo.iso relatorio_funcoes.txt
@@ -32,7 +36,7 @@ COMANDOS
 O QUE O MOD ULTIMATE-LIVRE FAZ
   Nenhum byte das funções do jogo é alterado. O mod acrescenta no fim do arquivo:
   - 17 funções novas com nomes próprios (luis_f_...);
-  - cópias ajustadas de 4 funções do jogo (valem no lugar das originais):
+  - cópias ajustadas de funções do jogo (valem no lugar das originais):
     switch_form_update (SELECT chama o mod; a roda do canto passa pelo mod; quando
     o jogo ignora os botões, o mod confere se a trava ficou presa), a função que
     guarda o direcional (se uma fase começar um Ultimate Event enquanto o mod
@@ -46,8 +50,14 @@ O QUE O MOD ULTIMATE-LIVRE FAZ
   é sempre o do jogo (o mod só trava os botões enquanto carrega). Monitor, vigias
   e a vigia por quadro liberam travas presas e devolvem o direcional sozinhos.
   A rede de segurança contra quedas só funciona enquanto o mod está em ação.
-  Tartagira e aliens sem Ultimate: SELECT não faz nada. (O Gigante só existe
-  na luta guiada da fase final; fora dela o jogo trava, então ficou desligado.)
+  As Ultimates ganham as habilidades do alien normal (Humungossauro Supremo empurra
+  caixas; Aranha Macaca Suprema solta teia; Gelo Fumaça Supremo plana etc.), também
+  nos eventos das fases.
+  EXPERIMENTAL (--gigante): Tartagira + SELECT vira o Gigante, com tamanho 1,6 em vez
+  de 3; ao sair, tira da memória e devolve o direcional. PRECISA do global/g_wayb.psp
+  montado pelo cd_anims.py --gigante (o original não tem modelo nem esqueleto: o
+  esqueleto do Gigante fica no pacote da fase final, l_tokd.psp). Aliens sem Ultimate:
+  SELECT não faz nada.
   O arquivo fica ~7,6 KB maior: o cd_iso.py põe ele no fim da ISO.
 
 FORMATO (descoberto)
@@ -302,6 +312,7 @@ ARG_DESTRANSF = 0xD6819B97
 BACKUP_JOGO = 0x90E796D7     # onde o jogo guarda a cópia do direcional
 ORIG_DPAD = 0x66960347       # troca de alien pelo direcional (gld_psp.ds) - fica original
 ORIG_RODA = 0x8F436AD3       # atualiza a roda do canto (circdisp.ds)
+BOTAO_ESPECIAIS = 0x643CCFE7 # campo do controle: segurando o botão que mostra os especiais
 ZONAS_CAMERA = (0x9AD2BFC4, 0x3482B9BD)  # desligam a troca de alien (câmera fixa)
 IDS_ULTIMATE = (0xF54B5E78, 0x0AA213A1, 0xD1349EEF, 0xF02188EC, 0xBCE02525)  # campos da tabela
 CHARMGR = 0x93ACA275
@@ -332,9 +343,25 @@ F_VIGIA_SAIDA = _fn("vigia_saida")  # 10 s após sair: solta se a devolução em
 F_DESTRAVA = _fn("destrava")      # Ultimate sem resposta: solta as travas
 F_RODA = _fn("roda")              # no lugar da roda do canto (repassa sempre)
 F_ZONA = _fn("zona")              # controle nas áreas de câmera fixa
+F_INTRO = _fn("intro")            # fim da animação de transformação (1ª vez na fase)
+F_INTRO_T = _fn("intro_t")        # o mesmo, chamado pelo timer de segurança (sem argumento)
+F_POSE = _fn("pose")              # a Ultimate recém-chegada faz a pose (corpo já trocado)
+F_POSE_FIM = _fn("pose_fim")      # fim da pose: devolve o movimento
+F_GRITO = _fn("grito")            # a Ultimate grita o próprio nome (vozes das fases)
 F_QUADRO = _fn("quadro")          # a cada quadro em que o jogo ignora os botões
 F_REDE = _fn("rede")              # rede de segurança contra quedas (só com o mod em ação)
-NPAR_MOD = {F_SELECT: 1, F_RODA: 3, F_ZONA: 3, F_QUADRO: 1}
+F_GIG_ENTRAR = _fn("gig_entrar")  # Gigante: Tartagira + SELECT
+F_GIG_CARREGAR = _fn("gig_carregar")  # já como Ben: carrega o Gigante no direcional
+F_GIG_MODELO = _fn("gig_modelo")  # animações carregadas: carrega o modelo (l_tokd/g_wayb.psp)
+F_GIG_PRONTO = _fn("gig_pronto")  # modelo carregado: vira o Gigante
+F_GIG_CB = _fn("gig_cb")          # fim da animação de virar o Gigante
+NPAR_MOD = {F_SELECT: 1, F_RODA: 3, F_ZONA: 3, F_QUADRO: 1, F_GIG_PRONTO: 1, F_INTRO: 1}
+TRANSF_GIGANTE = 0xB7269B14  # vira o Gigante (usa character_waybig e os golpes de atk_wb.ddf)
+# No jogo original o Gigante está espalhado: global/g_wayb.psp só tem ANIMAÇÕES,
+# l_tokd/g_wayb.psp tem MODELO e texturas, e o ESQUELETO fica em l_tokd/l_tokd.psp (pacote da
+# fase final, carregado só nela). O cd_anims.py --gigante junta tudo no global/g_wayb.psp.
+GIG_PASTA, GIG_MODELO = "l_tokd", "g_wayb"
+ESCALA_GIGANTE = 1.6         # a fase final usa 3.0 (luta guiada); 1.6 cabe melhor nas fases
 
 # --- variáveis do mod ------------------------------------------------------
 SAINDO = crc("luis_saindo")
@@ -359,14 +386,56 @@ REDE_POS = crc("luis_rede_pos")        # último lugar seguro (no chão)
 REDE_QUEDA = crc("luis_rede_queda")    # conferidas seguidas caindo
 REDE_FIRME = crc("luis_rede_firme")    # conferidas seguidas parado na mesma altura
 REDE_VIVA = crc("luis_rede_viva")
+GIGANTE = crc("luis_gigante")          # o mod está com o Gigante (carregado por ele)
+GIG_CARREGADO = crc("luis_gig_carregado")  # o modelo do Gigante foi carregado pelo mod
+QUADROS_INTERAGINDO = crc("luis_quadros_interagindo")  # quadros "interagindo" sem sair do lugar
+INTRO_EM_CURSO = crc("luis_intro_em_curso")   # animação de transformação tocando
+POSE_TRAVADA = crc("luis_pose_travada")        # o mod travou o movimento (playermgr:lockmovement)
+DURACAO_POSE = 1.5     # movimento travado no começo da pose (a pose inteira tem ~6,5 s e era
+                       # lenta demais: depois disso, andar ou atacar já interrompe)
+BEN_GRANDE = crc("luis_ben_grande")            # Ben gigante ligado (R + SELECT)
+R_SEGURO = crc("luis_r_seguro")                # R segurado no último quadro (F_SELECT não recebe o controle)
+SEL_ANTES = crc("luis_sel_antes")              # SELECT no quadro anterior (para pegar o aperto)
+FALA_ULTIMATES = 0xE8C0396D    # falante das Ultimates (scripts vo_<fase>.ds; cd_vozes.py completa)
+PRIORIDADE_VO = 0xDA9FD054     # prioridade de fala que as fases usam
+GRITOS = {"humongousaur": "humongousaur", "spidermonkey": "spidermonkey", "bigchill": "bigchill",
+          "echo": "echoecho", "swampfire": "swampfire"}   # campo da tabela -> nome na fala
+ESCALA_BEN = 1.8
+# 1ª Ultimate de cada alien em cada fase: a animação que as fases usam nos eventos
+# (alien "carregando" -> troca -> Ultimate posando). O Fogo-Fátuo não tem a animação.
+INTRO = {  # alien: (prefixo do alien normal, prefixo da Ultimate, variável "já vi nesta fase")
+    "humongousaur": ("humongousaur", "ulthumong", crc("luis_intro_hm")),
+    "spidermonkey": ("spidermonkey", "ultspidermonkey", crc("luis_intro_sm")),
+    "bigchill": ("bigchill", "ultbigchill", crc("luis_intro_bc")),
+    "echo": ("echo", "ultechoecho", crc("luis_intro_ec")),
+}
+ESP_BEN = crc("luis_esp_ben")          # especiais do Gigante já registrados neste Ben
+# golpes especiais do Gigante acrescentados no atk_bn.ddf pelo cd_anims.py --ben-gigante
+ESPECIAIS_BEN = (crc("ben_elbow_smash"), crc("ben_fistpummel"), crc("ben_flying_heel"))
+INT_X = crc("luis_int_x")
+INT_Z = crc("luis_int_z")
+LIMITE_INTERACAO = 300       # ~10 s a 30 quadros/s (rede de segurança; com as animações copiadas
+                             # a Ultimate termina a interação sozinha)
 
-FUNCOES_MOD = (F_SELECT, F_ENTRAR, F_CARREGAR, F_PRONTO, F_ATIVAR, F_MONITOR, F_FIM,
+FUNCOES_MOD = (F_GIG_ENTRAR, F_GIG_CARREGAR, F_GIG_MODELO, F_GIG_PRONTO, F_GIG_CB, F_SELECT, F_ENTRAR, F_CARREGAR, F_PRONTO, F_ATIVAR, F_MONITOR, F_FIM,
                F_SAIR, F_SAIR_SEGURO, F_DEVOLVIDO, F_VIGIA, F_VIGIA_SAIDA, F_DESTRAVA,
-               F_RODA, F_ZONA, F_QUADRO, F_REDE)
-VARIAVEIS_MOD = (SAINDO, RESTAURANDO, ATIVA, PENDENTE, ALIEN_MOD, FORMA_MOD, TRAVA_MOD,
+               F_RODA, F_ZONA, F_QUADRO, F_REDE, F_INTRO, F_INTRO_T, F_POSE, F_POSE_FIM, F_GRITO)
+VARIAVEIS_MOD = (GIGANTE, GIG_CARREGADO, SAINDO, RESTAURANDO, ATIVA, PENDENTE, ALIEN_MOD, FORMA_MOD, TRAVA_MOD,
                  COPIA_DIRECIONAL, ESPERA, PARADO, BATIDA, RECUSAS, QUADROS, QUADROS_TRAVA,
-                 FALHAS, VIGIAS, VIGIAS_SAIDA, REDE_Y, REDE_POS, REDE_QUEDA, REDE_FIRME, REDE_VIVA)
-SUBSTITUIDAS = (H_UPD, GUARDAR_DIRECIONAL) + ZONAS_CAMERA
+                 FALHAS, VIGIAS, VIGIAS_SAIDA, REDE_Y, REDE_POS, REDE_QUEDA, REDE_FIRME, REDE_VIVA,
+                 QUADROS_INTERAGINDO, INT_X, INT_Z, ESP_BEN, INTRO_EM_CURSO, POSE_TRAVADA, BEN_GRANDE, R_SEGURO, SEL_ANTES) + tuple(v[2] for v in INTRO.values())
+APLICA_HABILIDADES = 0x65661824   # liga/desliga as habilidades do jogador conforme a soma de bits
+# (função da transformação na Ultimate, habilidades da Ultimate, habilidades do alien normal)
+# Bits: 1 pular, 2/4/8 (nomes não identificados; só alguns aliens têm), 32 empurrar caixa,
+#       64 correr, 128 planar, 1024 atacar, 2048 defender, 4096 teia.
+#       As Ultimates só têm 1+64+1024+2048.
+HABILIDADES_ULTIMATE = (
+    (0xD322606E, 0x6A6B8C5D, 0x2110921C),   # Humungossauro Supremo <- Humungossauro (empurra caixa)
+    (0x29A1FB23, 0x54553B00, 0x1F2E2541),   # Aranha Macaca Suprema <- Aranha Macaca (teia, 2/4/8)
+    (0x9D32DDF9, 0xE81BB8F4, 0xE9678C14),   # Fogo Fátuo Supremo <- Fogo Fátuo (2/4/8)
+    (0x18D05CF7, 0xF0B32374, 0x57F6C535),   # Gelo Fumaça Supremo <- Gelo Fumaça (plana, 2/4/8)
+)                                           # (Eco Eco: as duas formas já têm as mesmas)
+SUBSTITUIDAS = (H_UPD, GUARDAR_DIRECIONAL) + ZONAS_CAMERA + tuple(x[0] for x in HABILIDADES_ULTIMATE)
 LIMITE_QUADROS = 450         # ~15 s a 30 quadros/s (7,5 s se o jogo rodar a 60)
 
 
@@ -559,7 +628,29 @@ def ajustar_zona(d, funcs, hz):
     return bytes(corpo), npar
 
 
-def funcoes_do_mod(rede=True):
+def ajustar_habilidades(d, funcs, fh, mask_ult, mask_base):
+    """Cópia da transformação na Ultimate usando as habilidades do alien normal
+    (todas as das Ultimates já estão incluídas nas dele): assim a Ultimate empurra
+    caixas, escala etc. como o alien normal. Vale também nos eventos das fases."""
+    corpo, npar = corpo_de(d, funcs, fh)
+    ops = ops_de(corpo)
+    n = 0
+    for a, b in zip(ops, ops[1:]):
+        if (a[1] == 0x07 and a[3] == (mask_ult,) and b[1] == 0x07 and b[3] == (APLICA_HABILIDADES,)):
+            corpo[a[0] + 4:a[0] + 8] = struct.pack("<I", mask_base)
+            n += 1
+    if n != 1:
+        raise ValueError("habilidades da Ultimate %08x: trecho não encontrado" % fh)
+    return bytes(corpo), npar
+
+
+def texto(r, t):
+    """r = string (instrução 0x04, texto em linha com zero no fim)"""
+    b = t.encode("latin-1") + b"\0"
+    return bytes((0x04, r, 0, 0)) + b + b"\0" * ((-len(b)) % 4)
+
+
+def funcoes_do_mod(rede=True, gigante=True, hud_ben=False, intro=True):
     """Código das funções novas: {hash: lista de instruções}."""
     h_gform, h_gcur = crc("gformdata"), crc("gcurrentcharacter")
     h_player, h_person = crc("player"), crc("person")
@@ -607,6 +698,39 @@ def funcoes_do_mod(rede=True):
     def solta_trava_mod(pfx):                  # solta a trava dos botões, se for do mod
         return [g(1, TRAVA_MOD), ("se_nao", 1, pfx), nil(6), s(6, TRAVA_INPUT),
                 s(6, TRAVA_MOD), ("rotulo", pfx)]
+
+    def trava_movimento():
+        return [g(28, crc("playermgr")), g(25, crc("playermgr")), instr(0x17, 25, 3, 0, crc("lockmovement")),
+                instr(0x20, 3, 28, 1, 20), sim(6), s(6, POSE_TRAVADA)]
+
+    def solta_movimento(pfx):
+        return [g(1, POSE_TRAVADA), ("se_nao", 1, pfx), nil(6), s(6, POSE_TRAVADA),
+                g(28, crc("playermgr")), g(25, crc("playermgr")), instr(0x17, 25, 3, 0, crc("unlockmovement")),
+                instr(0x20, 3, 28, 1, 20), ("rotulo", pfx)]
+
+    def intro_inicio():
+        """1ª vez deste alien nesta fase: toca a animação de transformação e termina em F_INTRO."""
+        itens = []
+        for nome_, (pn, pu, var) in INTRO.items():
+            itens += [
+                *tabela(11), instr(0x17, 11, 17, 0, crc(nome_)), instr(0x10, 8, 17, 18),
+                ("se_nao", 18, "x_" + nome_),
+                # fase atual (o objeto da missão) já viu esta animação?
+                g(28, crc("missionmgr")), g(25, crc("missionmgr")),
+                instr(0x17, 25, 3, 0, crc("getcurrentmission")), instr(0x20, 3, 28, 1, 21),
+                g(22, var), instr(0x10, 21, 22, 18), ("se_nao", 18, "n_" + nome_), ("vai", "sem_intro"),
+                ("rotulo", "n_" + nome_),
+                s(21, var), sim(18), s(18, INTRO_EM_CURSO),
+                *trava_mod(), *trava_movimento(),
+                g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, h_person), instr(0x20, 3, 28, 1, 20),
+                instr(0x06, 20, 28, 0), instr(0x17, 20, 3, 0, crc("playanim")),
+                instr(0x05, 29, 0, 0, crc(pn + "_ult_formchange_in_01")), num(30, 1), num(31, 0),
+                g(32, F_INTRO), instr(0x20, 3, 28, 5, 24),
+                *timer(F_INTRO_T, 2.5),                  # segurança: segue mesmo sem o aviso
+                RETORNA,
+                ("rotulo", "x_" + nome_),
+            ]
+        return itens + [("rotulo", "sem_intro")]
 
     def trava_mod():
         return [sim(6), s(6, TRAVA_INPUT), s(6, TRAVA_MOD)]
@@ -674,7 +798,103 @@ def funcoes_do_mod(rede=True):
             ("rotulo", pfx),
         ]
 
+    def missao(metodo, arquivo, cb=None):
+        """missionmgr.getcurrentmission():metodo("l_tokd", arquivo[, cb])"""
+        itens = [g(13, crc("missionmgr")), g(14, crc("missionmgr")),
+                 instr(0x17, 14, 15, 0, crc("getcurrentmission")), instr(0x20, 15, 13, 1, 9),
+                 texto(10, GIG_PASTA), texto(11, arquivo)]
+        if cb is not None:
+            itens += [g(12, cb)]
+        itens += [instr(0x17, 9, 4, 0, crc(metodo)), instr(0x20, 4, 9, 4 if cb is not None else 3, 5)]
+        return itens
+
+    def descarrega_modelo(pfx):                 # só se o mod carregou
+        return [g(16, GIG_CARREGADO), ("se_nao", 16, pfx), nil(16), s(16, GIG_CARREGADO),
+                *missao("unloaddata", GIG_MODELO), ("rotulo", pfx)]
+
+    def escala(valor):                          # player.person:setscale(valor)
+        return [g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, h_person),
+                instr(0x20, 3, 28, 1, 20), num(21, valor), instr(0x17, 20, 22, 0, crc("setscale")),
+                instr(0x06, 20, 26, 0), instr(0x06, 21, 27, 0), instr(0x20, 22, 26, 2, 23)]
+
     f = {}
+    if gigante:
+        def remove_gigante(pfx):                # tira o Gigante da memória (fora dele)
+            return [*tabela(11), instr(0x17, 11, 5, 0, crc("waybig")),
+                    g(3, h_gcur), instr(0x10, 3, 5, 6), ("se_nao", 6, pfx + "r"), ("vai", pfx),
+                    ("rotulo", pfx + "r"),
+                    g(2, h_gform), instr(0x18, 2, 5, 4), instr(0x17, 4, 11, 0, crc("character")),
+                    g(10, CHARMGR), g(7, CHARMGR), instr(0x17, 7, 3, 0, crc("removecharacter")),
+                    instr(0x20, 3, 10, 2, 4),
+                    ("rotulo", pfx)]
+        f[F_GIG_ENTRAR] = [                     # Tartagira + SELECT
+            g(6, FORMA_ULT), ("se_nao", 6, "e1"), RETORNA,      # evento de fase: a fase manda
+            ("rotulo", "e1"),
+            g(6, PENDENTE), ("se_nao", 6, "e2"), RETORNA,
+            ("rotulo", "e2"),
+            *seguro,
+            g(6, LIMPA_TARTAGIRA), instr(0x20, 6, 8, 0, 7),    # desliga o redemoinho antes
+            g(3, h_gcur), s(3, ALIEN_MOD), sim(6), s(6, GIGANTE),
+            *trava_mod(),
+            *conta(VIGIAS, 4, 5, "vg"), *timer(F_VIGIA, 15),
+            g(8, F_GIG_CARREGAR), g(6, VOLTAR_BEN), instr(0x20, 6, 8, 1, 7),
+            RETORNA,
+        ]
+        f[F_GIG_CARREGAR] = [                   # já como Ben: carrega o Gigante como alien do
+            nil(6), s(6, TRANSF_EM_CURSO),
+            g(8, ALIEN_MOD), ("se_nao", 8, "cancela"),          # direcional (pacote
+            g(6, FORMA_ULT), ("se_nao", 6, "segue"), ("vai", "cancela"),   # global/g_wayb.psp
+            ("rotulo", "segue"),                                # e golpes atk_wb.ddf)
+            g(16, PENDENTE), ("se_nao", 16, "guarda"), ("vai", "carrega"),
+            ("rotulo", "guarda"),
+            *chamar0(GUARDAR_DIRECIONAL),
+            g(16, BACKUP_JOGO), s(16, COPIA_DIRECIONAL),
+            nil(16), s(16, BACKUP_JOGO), sim(16), s(16, PENDENTE),
+            ("rotulo", "carrega"),
+            *tabela(11), instr(0x17, 11, 9, 0, crc("waybig")),
+            g(8, ALIEN_MOD), nil(10), nil(11), g(12, F_GIG_MODELO),
+            g(6, PRECARREGAR), instr(0x20, 6, 8, 5, 7),
+            RETORNA,
+            ("rotulo", "cancela"),
+            nil(6), s(6, ALIEN_MOD), s(6, GIGANTE),
+            *solta_trava_mod("c1"),
+            RETORNA,
+        ]
+        f[F_GIG_MODELO] = [                     # animações carregadas: agora o modelo
+            g(8, ALIEN_MOD), ("se_nao", 8, "cancela"),
+            g(6, FORMA_ULT), ("se_nao", 6, "carrega"),
+            ("rotulo", "cancela"),
+            nil(6), s(6, GIGANTE),
+            *solta_trava_mod("c1"),
+            RETORNA,
+            ("rotulo", "carrega"),
+            # O global/g_wayb.psp montado pelo cd_anims.py (--gigante) já tem modelo,
+            # esqueleto e animações: vira direto, sem depender do pacote da fase final.
+            g(8, ALIEN_MOD), g(6, F_GIG_PRONTO), instr(0x20, 6, 8, 1, 7),
+            RETORNA,
+        ]
+        f[F_GIG_PRONTO] = [                     # (r0) modelo carregado
+            g(8, ALIEN_MOD), ("se_nao", 8, "cancela"),
+            g(6, GIGANTE), ("se_nao", 6, "cancela"),
+            g(6, FORMA_ULT), ("se_nao", 6, "vira"),
+            ("rotulo", "cancela"),
+            nil(6), s(6, GIGANTE),                  # o direcional pendente é devolvido depois
+            *descarrega_modelo("dm"),
+            *solta_trava_mod("c1"),
+            RETORNA,
+            ("rotulo", "vira"),
+            sim(19), s(19, ATIVA), num(19, 0), s(19, ESPERA), s(19, PARADO), nil(19), s(19, BATIDA),
+            *timer(F_MONITOR, 1.5),
+            *inicia_rede(),
+            g(8, F_GIG_CB), g(6, TRANSF_GIGANTE), instr(0x20, 6, 8, 1, 7),
+            *escala(ESCALA_GIGANTE),
+            RETORNA,
+        ]
+        f[F_GIG_CB] = [                         # fim da animação de virar o Gigante
+            nil(6), s(6, TRANSF_EM_CURSO),
+            *solta_trava_mod("s1"),
+            RETORNA,
+        ]
     f[F_SELECT] = [                             # SELECT como Ben ou alien normal
         # direcional ainda não devolvido? devolve antes de tudo
         g(16, PENDENTE), ("se_nao", 16, "ben"),
@@ -691,6 +911,16 @@ def funcoes_do_mod(rede=True):
         # Ben: tela de troca de aliens, como no jogo original (se puder transformar)
         ("rotulo", "ben"),
         *eh_ben(18), ("se_nao", 18, "alien"),
+        *([
+            # R + SELECT: Ben gigante (liga/desliga). O R vem do quadro anterior (a roda
+            # guarda), porque esta função não recebe o controle.
+            g(18, R_SEGURO), ("se_nao", 18, "tela"),
+            g(18, BEN_GRANDE), ("se_nao", 18, "cresce"),
+            nil(18), s(18, BEN_GRANDE), *escala(1), RETORNA,
+            ("rotulo", "cresce"),
+            sim(18), s(18, BEN_GRANDE), *escala(ESCALA_BEN), RETORNA,
+            ("rotulo", "tela"),
+        ] if hud_ben else []),
         g(28, h_player), g(25, h_player), instr(0x17, 25, 21, 0, crc("isabletotransform")),
         instr(0x20, 21, 28, 1, 23), ("se_nao", 23, "fim"),
         g(28, crc("overlay")), g(29, crc("characterpresetscreen_enter")), g(25, crc("overlay")),
@@ -704,7 +934,7 @@ def funcoes_do_mod(rede=True):
     ]
     f[F_ENTRAR] = [
         g(2, h_gform), g(3, h_gcur), instr(0x18, 2, 3, 4), instr(0x17, 4, 5, 0, CAMPO_ULT),
-        ("se_nao", 5, "fim"),             # sem Ultimate (Tartagira, Gigante...): nada
+        ("se_nao", 5, "sem_ult"),         # sem Ultimate: só a Tartagira vira o Gigante
         g(6, FORMA_ULT), ("se_nao", 6, "e1"), ("vai", "fim"),   # evento de fase: a fase manda
         ("rotulo", "e1"),
         g(6, PENDENTE), ("se_nao", 6, "e2"), ("vai", "fim"),
@@ -715,11 +945,16 @@ def funcoes_do_mod(rede=True):
         *conta(VIGIAS, 4, 5, "vg"),
         *timer(F_VIGIA, 15),
         g(8, F_CARREGAR), g(6, VOLTAR_BEN), instr(0x20, 6, 8, 1, 7),   # Ben, depois carregar
+        RETORNA,
+        ("rotulo", "sem_ult"),
+        *([*tabela(11), g(12, h_gcur), instr(0x17, 11, 17, 0, crc("terraspin")),
+           instr(0x10, 12, 17, 18), ("se_nao", 18, "fim"), *chamar0(F_GIG_ENTRAR)] if gigante else []),
         ("rotulo", "fim"),
         RETORNA,
     ]
     f[F_CARREGAR] = [                           # já como Ben
-        g(8, ALIEN_MOD), ("se_nao", 8, "cancela"),
+        nil(6), s(6, TRANSF_EM_CURSO),          # (a volta para o Ben com callback do mod não
+        g(8, ALIEN_MOD), ("se_nao", 8, "cancela"),   #  desliga essa trava)
         g(6, FORMA_ULT), ("se_nao", 6, "segue"), ("vai", "cancela"),   # uma fase começou
         ("rotulo", "segue"),
         g(16, PENDENTE), ("se_nao", 16, "guarda"), ("vai", "carrega"),
@@ -757,18 +992,79 @@ def funcoes_do_mod(rede=True):
         g(8, ALIEN_MOD), g(3, h_gcur), instr(0x10, 3, 8, 4), ("se_nao", 4, "aborta"),
         g(2, h_gform), instr(0x18, 2, 8, 5), instr(0x17, 5, 6, 0, CAMPO_ULT),
         ("se_nao", 6, "aborta"),
+        *(intro_inicio() if intro else []),
         # o mesmo que a função da Ultimate do jogo faz no evento (sem mexer nela)
         s(8, FORMA_ULT), s(8, FORMA_MOD),
         *trava_mod(),
         *chamar0(crc("switch_to_ultimate")),
+        *timer(F_GRITO, 0.5),
         RETORNA,
         ("rotulo", "aborta"),
         *solta_trava_mod("ab"),
         ("rotulo", "fim"),
         RETORNA,
     ]
+    f[F_INTRO_T] = [g(6, F_INTRO), nil(7), instr(0x20, 6, 7, 1, 8), RETORNA]
+    f[F_INTRO] = [                              # fim da animação (ou o timer de segurança)
+        g(1, INTRO_EM_CURSO), ("se_nao", 1, "fim"),     # já tratada
+        nil(1), s(1, INTRO_EM_CURSO),
+        g(8, ALIEN_MOD), ("se_nao", 8, "aborta"),
+        g(6, FORMA_ULT), ("se_nao", 6, "i1"), ("vai", "aborta"),   # a fase começou um evento
+        ("rotulo", "i1"),
+        g(3, h_gcur), instr(0x10, 3, 8, 4), ("se_nao", 4, "aborta"),
+        # brilho na tela, como nos eventos das fases
+        g(28, crc("overlay")), g(25, crc("overlay")), instr(0x17, 25, 3, 0, crc("setgloweffect")),
+        num(29, 3), num(30, 1), num(31, 0), instr(0x20, 3, 28, 4, 20),
+        s(8, FORMA_ULT), s(8, FORMA_MOD),
+        *chamar0(crc("switch_to_ultimate")),
+        *timer(F_GRITO, 0.5),
+        # a pose de chegada sai um instante depois, com o corpo da Ultimate já trocado
+        *timer(F_POSE, 0.4),
+        ("vai", "fim"),
+        ("rotulo", "aborta"),
+        *solta_trava_mod("ia"),
+        *solta_movimento("im"),
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
+    f[F_POSE] = [
+        g(8, ALIEN_MOD), ("se_nao", 8, "solta"),
+        g(1, ATIVA), ("se_nao", 1, "solta"),
+        *[x for nome_, (pn, pu, var) in INTRO.items() for x in (
+            *tabela(11), instr(0x17, 11, 17, 0, crc(nome_)), instr(0x10, 8, 17, 18),
+            ("se_nao", 18, "p_" + nome_),
+            g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, h_person), instr(0x20, 3, 28, 1, 20),
+            instr(0x06, 20, 28, 0), instr(0x17, 20, 3, 0, crc("playanim")),
+            instr(0x05, 29, 0, 0, crc(pu + "_transform_01")), instr(0x20, 3, 28, 2, 24),
+            ("vai", "espera"),
+            ("rotulo", "p_" + nome_))],
+        ("rotulo", "solta"),
+        *solta_movimento("ps"),
+        RETORNA,
+        ("rotulo", "espera"),
+        *timer(F_POSE_FIM, DURACAO_POSE),
+        RETORNA,
+    ]
+    f[F_POSE_FIM] = [*solta_movimento("pf"), RETORNA]
+    # player:playvo_ex(player, falante das Ultimates, "<alien>_name_callout", prioridade, 0)
+    f[F_GRITO] = [
+        g(8, ALIEN_MOD), ("se_nao", 8, "fim"),
+        g(9, FALA_ULTIMATES), ("se_nao", 9, "fim"),      # fase sem script de vozes: nada
+        *[x for campo, nome_ in GRITOS.items() for x in (
+            *tabela(11), instr(0x17, 11, 17, 0, crc(campo)), instr(0x10, 8, 17, 18),
+            ("se_nao", 18, "g_" + campo),
+            g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, crc("playvo_ex")),
+            instr(0x06, 9, 29, 0), instr(0x05, 30, 0, 0, crc(nome_ + "_name_callout")),
+            g(31, PRIORIDADE_VO), num(32, 0), instr(0x20, 3, 28, 5, 20),
+            ("vai", "fim"),
+            ("rotulo", "g_" + campo))],
+        ("rotulo", "fim"),
+        RETORNA,
+    ]
     f[F_MONITOR] = [                            # a cada 1,5 s com a Ultimate do mod
         g(1, ATIVA), ("se_nao", 1, "fim"),
+        g(1, INTRO_EM_CURSO), ("se_nao", 1, "m0"), ("vai", "rearma"),   # animação tocando
+        ("rotulo", "m0"),
         *e_especial(15, 14), ("se_nao", 15, "acabou"),
         g(2, BATIDA), ("se_nao", 2, "parado"),          # a roda continua rodando?
         nil(2), s(2, BATIDA), num(2, 0), s(2, PARADO), ("vai", "rearma"),
@@ -818,10 +1114,15 @@ def funcoes_do_mod(rede=True):
     f[F_SAIR] = [                               # já como Ben: devolve o direcional
         g(1, RESTAURANDO), ("se_nao", 1, "segue"), RETORNA,
         ("rotulo", "segue"),
+        *solta_movimento("sm"),                 # saiu no meio da pose
         sim(6), s(6, SAINDO), nil(6), s(6, ATIVA),
         nil(6), s(6, TRANSF_EM_CURSO),          # (a volta para o Ben com callback do mod
                                                 #  não desliga essa trava)
         *remove_ultimate("rm"),
+        *([g(16, GIGANTE), ("se_nao", 16, "nao_gig"),            # Gigante: tamanho normal e
+           *escala(1), *remove_gigante("rg"), *descarrega_modelo("dm"),   # tira da memória; depois
+           nil(6), s(6, GIGANTE),                                 # devolve o direcional
+           ("rotulo", "nao_gig")] if gigante else []),
         g(16, PENDENTE), ("se_nao", 16, "nada"),
         sim(6), s(6, RESTAURANDO),
         *trava_mod(),                           # direcional parado durante o carregamento
@@ -895,6 +1196,31 @@ def funcoes_do_mod(rede=True):
         *e_especial(15, 14), ("se_nao", 15, "normal"),
         sim(16), s(16, BATIDA),                 # "estou vivo" (para o monitor)
         g(16, PENDENTE), ("se_nao", 16, "repassa"),     # Ultimate de evento da fase: não mexe
+        g(19, SAINDO), g(18, RESTAURANDO), instr(0x15, 19, 18, 19), ("se_nao", 19, "i0"),
+        ("vai", "repassa"),                             # já está saindo
+        ("rotulo", "i0"),
+        # Sem as animações de interação (pacote g_u*.psp original) a Ultimate fica presa
+        # "interagindo" para sempre, sem sair do lugar. Se isso durar ~10 s, volta para o
+        # Ben (o objeto pode ser usado de novo). Com cd_anims.py ela interage de verdade.
+        g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, h_person),
+        instr(0x20, 3, 28, 1, 20), instr(0x17, 20, 21, 0, crc("isinteracting")),
+        instr(0x06, 20, 22, 0), instr(0x20, 21, 22, 1, 23),
+        ("se_nao", 23, "i_livre"),
+        g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, crc("position")),
+        instr(0x20, 3, 28, 1, 20),
+        instr(0x17, 20, 21, 0, crc("x")), instr(0x17, 20, 22, 0, crc("z")),
+        g(24, INT_X), instr(0x10, 21, 24, 25), g(24, INT_Z), instr(0x10, 22, 24, 26),
+        instr(0x14, 25, 26, 25), s(21, INT_X), s(22, INT_Z),
+        ("se_nao", 25, "i_livre"),                      # andou: está empurrando etc.
+        *conta(QUADROS_INTERAGINDO, 4, 5, "ic"), *maior(4, LIMITE_INTERACAO, 7, 6),
+        ("se_nao", 7, "sel"),
+        num(4, 0), s(4, QUADROS_INTERAGINDO), s(4, RECUSAS),
+        *sair_pelo_alien(),
+        *conta(VIGIAS_SAIDA, 4, 5, "ivs"), *timer(F_VIGIA_SAIDA, 10),
+        ("vai", "repassa"),
+        ("rotulo", "i_livre"),
+        num(4, 0), s(4, QUADROS_INTERAGINDO),
+        ("rotulo", "sel"),
         instr(0x17, 0, 16, 0, crc("btn_select")), ("se_nao", 16, "repassa"),
         *chamar0(F_SAIR_SEGURO),
         ("vai", "repassa"),
@@ -919,6 +1245,36 @@ def funcoes_do_mod(rede=True):
         ("rotulo", "zera"),
         num(4, 0), s(4, QUADROS),
         ("rotulo", "repassa"),
+        *([
+            # Ben com os golpes do Gigante: segurando o botão de especiais (r0.0x643ccfe7),
+            # a roda mostra os golpes do Gigante. O jogo só desenha os especiais quando o
+            # personagem atual não é o Ben, então durante a chamada ele "vira" o Gigante.
+            instr(0x17, 0, 18, 0, BOTAO_ESPECIAIS), s(18, R_SEGURO),   # para o R + SELECT
+            # Ben gigante: o tamanho é reaplicado a cada quadro (se o jogo o desfizer)
+            *eh_ben(26), ("se_nao", 26, "bg_fim"),
+            g(26, BEN_GRANDE), ("se_nao", 26, "bg_fim"), *escala(ESCALA_BEN),
+            ("rotulo", "bg_fim"),
+            # sempre que o jogador vira o Ben (o jogo apaga os golpes a cada troca),
+            # registra os especiais do Gigante uma vez
+            *eh_ben(18), ("se_nao", 18, "esp_limpa"),
+            g(27, ESP_BEN), ("se_nao", 27, "esp_add"), ("vai", "esp_ok"),
+            ("rotulo", "esp_add"),
+            *[x for hsp in ESPECIAIS_BEN for x in (
+                g(28, h_player), g(25, h_player), instr(0x17, 25, 3, 0, crc("addstartattack")),
+                instr(0x05, 29, 0, 0, hsp), instr(0x20, 3, 28, 2, 20))],
+            sim(27), s(27, ESP_BEN),
+            ("vai", "esp_ok"),
+            ("rotulo", "esp_limpa"),
+            nil(27), s(27, ESP_BEN), ("vai", "rp"),
+            ("rotulo", "esp_ok"),
+            instr(0x17, 0, 18, 0, BOTAO_ESPECIAIS), ("se_nao", 18, "rp"),
+            g(26, h_gcur), *tabela(11), instr(0x17, 11, 17, 0, crc("waybig")), s(17, h_gcur),
+            instr(0x06, 0, 20, 0), instr(0x06, 1, 21, 0), instr(0x06, 2, 22, 0),
+            g(23, ORIG_RODA), instr(0x20, 23, 20, 3, 24),
+            s(26, h_gcur),
+            RETORNA,
+            ("rotulo", "rp"),
+        ] if hud_ben else []),
         instr(0x06, 0, 20, 0), instr(0x06, 1, 21, 0), instr(0x06, 2, 22, 0),
         g(23, ORIG_RODA), instr(0x20, 23, 20, 3, 24),
         RETORNA,
@@ -997,7 +1353,7 @@ def funcoes_do_mod(rede=True):
     return {h: montar(itens) for h, itens in f.items()}
 
 
-def cmd_ultimate_livre(origem, destino, rede=True):
+def cmd_ultimate_livre(origem, destino, rede=True, habilidades=True, gigante=False, hud_ben=False, intro=True):
     d0 = open(origem, "rb").read()
     d, tirou = remover_mod(d0)
     if tirou:
@@ -1007,7 +1363,7 @@ def cmd_ultimate_livre(origem, destino, rede=True):
     print("  globals.ds original: %d funções (nenhuma é alterada)" % len(funcs))
 
     novas = []
-    for h, corpo in funcoes_do_mod(rede).items():
+    for h, corpo in funcoes_do_mod(rede, gigante, hud_ben, intro).items():
         novas.append((h, NPAR_MOD.get(h, 0), b"".join(corpo)))
     print("  %d funções novas do mod (nomes luis_f_...)" % len(novas))
     corpo, npar = ajustar_switch_form_update(d, funcs)
@@ -1020,6 +1376,12 @@ def cmd_ultimate_livre(origem, destino, rede=True):
         corpo, npar = ajustar_zona(d, funcs, hz)
         novas.append((hz, npar, corpo))
     print("  câmera fixa: SELECT ainda sai da Ultimate do mod (%d)" % len(ZONAS_CAMERA))
+    if habilidades:
+        for fh, mu, mb in HABILIDADES_ULTIMATE:
+            corpo, npar = ajustar_habilidades(d, funcs, fh, mu, mb)
+            novas.append((fh, npar, corpo))
+        print("  Ultimates com as habilidades do alien normal (empurrar caixa, teia, planar...): %d"
+              % len(HABILIDADES_ULTIMATE))
 
     saida = bytearray(d)
     for h, npar, corpo in novas:
@@ -1155,9 +1517,19 @@ def main():
             cmd_gerar_nomes(a[1], a[2], a[3])
         elif len(a) >= 3 and a[0] == "ultimate-livre":
             opc = a[3:]
-            cmd_ultimate_livre(a[1], a[2], rede="--sem-rede" not in opc)
+            cmd_ultimate_livre(a[1], a[2], rede="--sem-rede" not in opc,
+                               habilidades="--sem-habilidades" not in opc,
+                               gigante="--gigante" in opc, hud_ben="--ben-gigante" in opc,
+                               intro="--sem-intro" not in opc)
+            if "--ben-gigante" in opc:
+                print("  (Ben com golpes do Gigante: segurar o botão de especiais mostra os golpes na roda;"
+                      " coloque também os a_plyr.psp do cd_anims.py --ben-gigante)")
+            if "--gigante" in opc:
+                print("  (Tartagira -> Gigante ligado: coloque também o global/g_wayb.psp do cd_anims.py --gigante)")
             if "--sem-rede" in opc:
                 print("  (rede de segurança desligada)")
+            if "--sem-habilidades" in opc:
+                print("  (Ultimates com as habilidades originais)")
             if "--funcoes" in opc:
                 print("  (--funcoes não é mais necessário: o mod não usa funções do jogo)")
         elif len(a) == 3 and a[0] == "verificar-funcoes":

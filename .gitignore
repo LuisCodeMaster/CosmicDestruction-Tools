@@ -21,7 +21,10 @@ cd_nomes.txt
 globals*.txt
 relatorio.*
 mod*/
-teste*/
+cd_trabalho/
+teste_*/
+teste_ben/
+teste_tudo/
 *.png
 
 # Python
