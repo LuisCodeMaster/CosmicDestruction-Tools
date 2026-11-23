@@ -21,6 +21,7 @@ Você liga ou desliga cada parte do mod pelo número e aperta **M**. O kit extra
 | Gritos das Ultimates | "Ultimate Humungousaur!" em qualquer fase | experimental |
 | Gigante | Tartagira + SELECT vira o Gigante em qualquer fase | experimental |
 | Ben com golpes do Gigante | combo, especiais no R + botão (roda de especiais), R + SELECT = Ben gigante | combo e especiais testados |
+| Jogo em português | usa o `traducao_pt.txt` da pasta (fica só com você: não vem no repositório) | testado (acentos) |
 
 O estado detalhado de cada recurso está em [docs/estado.md](docs/estado.md).
 

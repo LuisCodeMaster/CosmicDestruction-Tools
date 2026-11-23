@@ -11,7 +11,10 @@ USO
   python cd_kit.py jogo.iso --tudo monta direto com todas as opções ligadas
 
 Precisa, na mesma pasta: cd_analisador.py, cd_iso.py, cd_scripts.py, cd_anims.py, cd_vozes.py
-A ISO original nunca é alterada. Arquivos de trabalho ficam em cd_trabalho/.
+(e cd_tool.py para a tradução). A ISO original nunca é alterada. Arquivos de trabalho ficam em cd_trabalho/.
+
+Tradução: deixe o traducao_pt.txt na pasta onde você roda o kit; a opção 7 coloca o
+português no lugar do inglês (psp_us.txt).
 """
 import glob
 import os
@@ -38,7 +41,9 @@ PADROES = [
     "*global/scripts/atk_*.ddf",        # golpes
     "*vo/vo_eng.psp",                   # bancos de voz das fases
     "*scripts/vo_*.ds",                 # scripts de voz das fases
+    "*global/scripts/psp_us.txt",       # textos em inglês (tradução)
 ]
+TRADUCAO = "traducao_pt.txt"
 
 OPCOES = [  # (chave, nome no menu, ligada por padrão)
     ("ultimate", "Ultimate a qualquer momento (SELECT)", True),
@@ -47,6 +52,7 @@ OPCOES = [  # (chave, nome no menu, ligada por padrão)
     ("vozes", "Ultimates gritando o nome em todas as fases", True),
     ("gigante", "Tartagira + SELECT vira o Gigante (experimental)", False),
     ("ben", "Ben com os golpes do Gigante (R = roda de especiais, R + SELECT = Ben gigante)", False),
+    ("traducao", "Jogo em português (usa o %s desta pasta)" % TRADUCAO, False),
 ]
 
 
@@ -94,6 +100,9 @@ def menu(escolha):
             escolha[k] = not escolha[k]
             if k in ("gigante", "ben", "intro", "interacoes") and escolha[k]:
                 escolha["ultimate"] = True          # essas dependem do script do mod
+            if k == "traducao" and escolha[k] and not os.path.exists(TRADUCAO):
+                print("  Não achei o %s nesta pasta. Coloque ele aqui antes de montar." % TRADUCAO)
+                escolha[k] = False
 
 
 def extrair(iso):
@@ -105,17 +114,39 @@ def extrair(iso):
     minusculas(EXTRAIDO)
 
 
+def garantir(iso, padrao, caminho):
+    """Extrai um arquivo que faltou (por exemplo, de um cd_trabalho feito por uma versão antiga)."""
+    if not os.path.exists(caminho):
+        print("    extraindo %s..." % os.path.basename(caminho))
+        rodar("cd_analisador.py", iso, "--extrair", EXTRAIDO, "--so", padrao)
+        minusculas(EXTRAIDO)
+    if not os.path.exists(caminho):
+        raise SystemExit("Não consegui extrair %s da ISO." % caminho)
+
+
+def juntar(origem, destino):
+    """Renomeia; se o destino já existe (extração feita em duas vezes), junta o conteúdo."""
+    if not os.path.exists(destino):
+        os.rename(origem, destino)
+    elif os.path.isdir(origem):
+        for n in os.listdir(origem):
+            juntar(os.path.join(origem, n), os.path.join(destino, n))
+        os.rmdir(origem)
+    else:
+        os.replace(origem, destino)
+
+
 def minusculas(raiz):
     """Algumas ISOs guardam os nomes em MAIÚSCULAS; as ferramentas usam minúsculas."""
     for pasta, dirs, arqs in os.walk(raiz, topdown=False):
         for n in arqs + dirs:
             if n != n.lower() and not (n.startswith("PSP_GAME") or n == "USRDIR"):
-                os.rename(os.path.join(pasta, n), os.path.join(pasta, n.lower()))
+                juntar(os.path.join(pasta, n), os.path.join(pasta, n.lower()))
     for n in ("psp_game", "usrdir"):           # a raiz fica PSP_GAME/USRDIR, como sempre
         for pasta, dirs, _ in os.walk(raiz):
             for d in dirs:
                 if d == n:
-                    os.rename(os.path.join(pasta, d), os.path.join(pasta, d.upper()))
+                    juntar(os.path.join(pasta, d), os.path.join(pasta, d.upper()))
 
 
 def montar(iso, escolha, destino):
@@ -148,6 +179,13 @@ def montar(iso, escolha, destino):
     if escolha["vozes"]:
         print("[%d] Gritos das Ultimates nas fases..." % passo); passo += 1
         rodar("cd_vozes.py", EXTRAIDO, EXTRAIDO, MOD)
+    if escolha["traducao"]:
+        print("[%d] Tradução para português..." % passo); passo += 1
+        if not os.path.exists(os.path.join(AQUI, "cd_tool.py")):
+            raise SystemExit("Falta o cd_tool.py na pasta do kit.")
+        original = os.path.join(g, "scripts", "psp_us.txt")
+        garantir(iso, "*global/scripts/psp_us.txt", original)
+        rodar("cd_tool.py", "texto-importar", original, TRADUCAO, os.path.join(glob_mod, "scripts", "psp_us.txt"))
     n = sum(len(f) for _, _, f in os.walk(MOD))
     if not n:
         raise SystemExit("Nenhuma opção ligada: nada para colocar na ISO.")
@@ -167,8 +205,10 @@ def main():
     if not os.path.isfile(iso):
         raise SystemExit("Arquivo não encontrado: " + iso)
     escolha = {k: padrao for k, _, padrao in OPCOES}
+    escolha["traducao"] = os.path.exists(TRADUCAO)      # ligada se a tradução estiver na pasta
     if "--tudo" in sys.argv:
         escolha = {k: True for k in escolha}
+        escolha["traducao"] = os.path.exists(TRADUCAO)
     elif not menu(escolha):
         return
     destino = args[1] if len(args) > 1 else os.path.splitext(iso)[0] + " (Mod).iso"
