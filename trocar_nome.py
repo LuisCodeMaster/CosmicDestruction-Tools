@@ -4,7 +4,10 @@ trocar_nome - troca um nome (de alien, golpe, personagem...) em toda a traduçã
 Ben 10 Ultimate Alien: Cosmic Destruction e gera a ISO traduzida de novo.
 
 Uso (na pasta do mod, onde ficam o traducao_pt.txt e as ISOs):
-    python ferramentas/trocar_nome.py
+    python ferramentas/trocar_nome.py                        acha a ISO da pasta (pergunta se houver várias)
+    python ferramentas/trocar_nome.py "jogo (Mod).iso"       usa essa ISO como base
+    python ferramentas/trocar_nome.py "base.iso" "saida.iso" escolhe também o nome da ISO gerada
+A ISO gerada leva " PT-BR" no nome (ex.: "jogo (Mod) PT-BR.iso").
 
 O programa pergunta o nome atual e o nome novo, mostra onde ele aparece, guarda uma cópia
 do arquivo antes de mudar (traducao_pt_backup.txt), troca a forma normal e a em maiúsculas
@@ -79,15 +82,30 @@ def trocar(linhas, velho, novo):
     return total
 
 
-def escolher_iso():
-    isos = [f for f in glob.glob("*.iso") + glob.glob("*.cso")
-            if "cosmic" in f.lower() and "pt-br" not in f.lower()]
-    com_mod = [f for f in isos if "(mod)" in f.lower()]
-    if com_mod:
-        return com_mod[0], "Ben 10 Cosmic Destruction PT-BR (Mod).iso"
-    if isos:
-        return isos[0], "Ben 10 Cosmic Destruction PT-BR.iso"
-    return None, None
+def escolher_iso(args):
+    """A ISO pode vir no comando; senão, procura as .iso/.cso da pasta (e pergunta se houver várias)."""
+    if args:
+        base = args[0]
+        if not os.path.isfile(base):
+            sys.exit("Não achei o arquivo %s." % base)
+    else:
+        isos = sorted(f for f in set(glob.glob("*.iso") + glob.glob("*.ISO") + glob.glob("*.cso") + glob.glob("*.CSO"))
+                      if "pt-br" not in f.lower())
+        if not isos:
+            return None, None
+        if len(isos) == 1:
+            base = isos[0]
+        else:
+            print("Qual ISO usar como base? (a ISO com o mod, se você tiver)")
+            for i, f in enumerate(isos, 1):
+                print("  %d) %s" % (i, f))
+            while True:
+                r = perguntar("Número: ")
+                if r.isdigit() and 1 <= int(r) <= len(isos):
+                    base = isos[int(r) - 1]
+                    break
+    saida = args[1] if len(args) > 1 else os.path.splitext(base)[0] + " PT-BR.iso"
+    return base, saida
 
 
 def main():
@@ -99,9 +117,11 @@ def main():
     if not original:
         sys.exit("Não achei o psp_us.txt original em cd_trabalho/extraido. Rode antes o cd_kit.py\n"
                  "ou extraia com o cd_analisador.py (--so \"*psp_us.txt\").")
-    base, saida = escolher_iso()
+    base, saida = escolher_iso(sys.argv[1:])
     if not base:
-        sys.exit("Não achei a ISO do Cosmic Destruction nesta pasta.")
+        sys.exit("Não achei nenhuma .iso nesta pasta. Rode assim:\n"
+                 '    python trocar_nome.py "nome da ISO.iso"')
+    print("ISO base: %s\nISO que vai ser gerada: %s" % (base, saida))
 
     linhas = ler()
     trocas = []
