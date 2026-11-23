@@ -46,6 +46,8 @@ Autor: Luis (GitHub LuisCodeMaster). Respostas e documentação **em português 
 | `cd_scripts.py` | Desmonta `.ds`; aplica o mod Ultimate (`ultimate-livre`) |
 | `cd_anims.py` | Pacotes `.psp`: copia e redireciona animações, monta o Gigante e o Ben com golpes |
 | `cd_vozes.py` | Gritos das Ultimates nos bancos de voz e scripts de voz das fases |
+| `trocar_nome.py` | Troca nomes na tradução (`traducao_pt.txt`) e gera a ISO PT-BR |
+| `cd_arcv.py` | Vilgax Attacks: pacote ARCV (listar, `--procurar`, `--extrair`) |
 | `testes/` | Simulador da máquina dos scripts + testes do mod + testes de controle |
 
 ## Como testar

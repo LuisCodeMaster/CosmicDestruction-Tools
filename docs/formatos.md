@@ -422,3 +422,40 @@ põe as cinco amostras em todos os bancos e acrescenta os cinco casos na funçã
 - **Os nomes dos campos da tabela de personagens** podem enganar. Confira no script desmontado.
 - **Não publique arquivos do jogo** no GitHub (ISO, EBOOT, `.ds`, `.psp`, `.ddf`, saves, `cd_nomes.txt`).
   As ferramentas sempre trabalham com a cópia de quem está usando.
+
+## Ben 10 Alien Force: Vilgax Attacks (PSP, ULUS-10488)
+
+Mesmo motor do Cosmic Destruction (Papaya Studio). Os scripts `.ds` têm a mesma assinatura
+0x1BADBABE e o desmontador lê o `globals.ds` inteiro (315 funções) sem erro. Parte dos nativos
+mudou entre os dois jogos: compare antes de reaproveitar código.
+
+### ARCV (`PSP_GAME/USRDIR/psp_ben10.bin`)
+
+Quase todo o jogo fica num pacote só.
+
+| Posição | Conteúdo |
+|---|---|
+| 0x00 | `ARCV` |
+| 0x04 | u32 quantidade de arquivos (721) |
+| 0x08 | u32 tamanho total do pacote |
+| 0x0C | registros de 12 bytes, ordenados pelo hash: u32 posição (múltiplo de 0x800), u32 tamanho, u32 `crc32(caminho em minúsculas)` |
+
+Os caminhos são do mesmo tipo do Cosmic (`global/scripts/globals.ds`). Aliens: `global/a_XX.psp`
+(modelo/animações), `global/e_XX.psp` (efeitos), `global/snd_psp/swpXXX.fsb` (sons), com
+bc Big Chill, bs Brainstorm, cb Cannonbolt, cs Chromastone, ec Echo Echo, gp Goop,
+hm Humungousaur, jr Jetray, sf Swampfire, sm Spidermonkey. `cd_arcv.py` lista e extrai.
+
+### CARC (314 arquivos dentro do ARCV)
+
+Pedaços comprimidos que **sobrescrevem partes de outros arquivos do pacote** (por exemplo
+trechos de `l_ence/l_ence_t.psp`). Cuidado: mudar um `.psp` de fase pode ser desfeito por um CARC.
+
+- Cabeçalho: `CARC`, u32 grupos, u32 registros, u32 tamanho total.
+- Registros de 24 bytes: u32 hash, u32 tipo, u32 posição, u32 tamanho guardado, u32 destino, u32 tamanho final.
+  - tipo 2 = grupo: o hash é o arquivo alvo; posição = onde começa a tabela dos pedaços; o 4º campo é a quantidade.
+  - tipo 0x80000001 = pedaço comprimido que vai para o `destino` dentro do arquivo alvo.
+  - tipo 0 = guardado sem compressão; tipo 1 = comprimido.
+- Compressão: bloco `SSZL`, u32 0, u32 tamanho comprimido, u32 tamanho final, depois LZSS clássico
+  (byte de flags lido do bit menos significativo, 1 = literal; referência de 2 bytes:
+  posição = b0 | (b1 & 0xF0) << 4, tamanho = (b1 & 0x0F) + 3; anel de 4096 bytes cheio de zeros,
+  começando em 4096 - 18). Conferido: a amostra descomprime consumindo exatamente os bytes guardados.

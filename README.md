@@ -102,6 +102,8 @@ Todas usam só a biblioteca padrão do Python 3.8+. Rode qualquer uma sem argume
 | `instalar_mod.py` | Instala só o mod Ultimate: ISO/CSO original → ISO nova com o mod |
 | `cd_anims.py` | Pacotes `.psp`: copia e redireciona animações entre personagens, monta o Gigante e o Ben com golpes |
 | `cd_vozes.py` | Coloca os gritos das Ultimates nos bancos de voz e scripts de voz de todas as fases |
+| `trocar_nome.py` | Troca um nome (alien, golpe, personagem) em toda a tradução e gera a ISO traduzida |
+| `cd_arcv.py` | **Vilgax Attacks:** lista, procura (`--procurar`) e extrai os arquivos do pacote `psp_ben10.bin` |
 | `cd_analisador.py` | Lista e identifica os arquivos da ISO/CSO e extrai arquivos escolhidos (`--extrair`, `--so`) |
 | `cd_iso.py` | Coloca arquivos modificados numa cópia da ISO (no lugar ou no fim, atualizando o índice) |
 | `cd_scripts.py` | Desmonta os scripts compilados `.ds`, aplica o mod `ultimate-livre`, gera a lista de nomes |

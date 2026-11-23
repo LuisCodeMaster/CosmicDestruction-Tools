@@ -24,10 +24,11 @@ para `docs/estado.md` (e para `docs/historico.md`, se houve uma lição).
 
 ## Ferramentas para quem não programa
 
-7. **Tradução para português.** Fonte `Ben10.TTF` tem todos os acentos. O `cd_tool.py`
-   (`texto-exportar`/`texto-importar`) já lida com o `psp_us.txt` (1.277 frases, cerca de 12.800 palavras).
-   Próximo passo: teste com 10 frases acentuadas no jogo; depois tradução em lotes; ideia de colocar o
-   português no lugar do espanhol (`psp_sp.txt`).
+7. **Tradução para português (feita em 22/11/2026).** As 1.277 frases do `psp_us.txt` foram traduzidas
+   (`traducao_pt.txt`, fica só com o Luis: deriva do texto do jogo, não vai para o GitHub). Teste de acentos
+   confirmado no jogo. Falta: conferir no jogo textos cortados nos menus e o tempo das legendas.
+   Nomes usados: Humungossauro, Friagem, Fogo Fátuo, Eco Eco, Macaco-Aranha, Tartagira, Quatro Braços,
+   Gigante, Supremo; Water Hazard, Armodrillo, AmpFibian, NRG e Rath sem mudança. `trocar_nome.py` troca um nome.
 8. **Editor de golpes** (`atk_*.ddf` ↔ texto legível).
 9. **Descompilador de scripts** (`.ds` → pseudo-Python e de volta).
 10. **Configuração em texto** (`mod.ini`) lida pelo `cd_kit.py`.
@@ -42,3 +43,13 @@ para `docs/estado.md` (e para `docs/historico.md`, se houve uma lição).
 15. **Eco Eco para o Ben:** os clones são criados por `spawn_echo_clone` pedindo a um objeto da fase
     (`world:obj(0x0F485776)`); seriam clones do Eco Eco, não do Ben. Conferir antes se o objeto existe.
 16. **Vídeos** (25 PMF) e **músicas** (26 AT3).
+
+## Vilgax Attacks (ULUS-10488)
+
+16. **Mesmo motor do Cosmic.** Pacote ARCV decifrado (`cd_arcv.py`), scripts no mesmo formato, CARC entendido
+    (pedaços LZSS que sobrescrevem partes de outros arquivos). Detalhes em `docs/formatos.md`.
+17. **Alien X:** não existe jogável no jogo (só nas legendas da cena final, que é vídeo). Caminho possível:
+    montar um a partir de outro alien (falta trocar textura nos `.psp`).
+18. **Próximo passo:** reempacotador do ARCV + teste simples (trocar uma legenda). As legendas são 4 arquivos sem
+    nome, um por idioma (inglês `817ba211`, francês `d89cdc3b`, italiano `c14a1a6d`, espanhol `7ceedc78`), e há uma
+    cópia comprimida do inglês dentro de um CARC (`66a3111e`) que pode sobrepor a tradução.
