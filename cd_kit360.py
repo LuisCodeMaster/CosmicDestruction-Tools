@@ -136,7 +136,7 @@ def aplicar(pasta, ligadas):
         print("\n2) Tradução...")
         t = achar_traducao()
         if not t:
-            print("  (pulada: não achei o %s)" % TRADUCAO)
+            print("  !!! PULADA: não achei o %s (coloque ele em %s)" % (TRADUCAO, os.getcwd()))
         else:
             rodar("cd_ps3.py", "texto-importar", orig("global", "scripts", "xbx_us.txt"), t,
                   jogo("global", "scripts", "xbx_us.txt"))
@@ -181,6 +181,8 @@ def menu(iso, pasta):
         print("Jogo: %s" % pasta)
         for i, (k, nome, _, sit) in enumerate(OPCOES, 1):
             print("  %d [%s] %s\n        (%s)" % (i, "X" if k in ligadas else " ", nome, sit))
+            if k == "traducao" and not achar_traducao():
+                print("        !!! FALTA o %s: coloque ele em %s" % (TRADUCAO, os.getcwd()))
         print("  A  aplicar as opções marcadas")
         print("  R  restaurar o jogo original")
         print("  S  sair")
@@ -189,7 +191,14 @@ def menu(iso, pasta):
             k = OPCOES[int(r) - 1][0]
             ligadas ^= {k}
             salvar_escolhas(ligadas)
+            if k == "traducao" and k in ligadas and not achar_traducao():
+                print("\n!!! Não achei o %s. Coloque ele em %s antes de aplicar." % (TRADUCAO, os.getcwd()))
         elif r == "a":
+            if "traducao" in ligadas and not achar_traducao():
+                print("\n!!! O português está marcado, mas não achei o %s em:" % TRADUCAO)
+                print("    %s\n    %s" % (os.getcwd(), AQUI))
+                if input("Aplicar mesmo assim, SEM a tradução? [s/n] ").strip().lower() != "s":
+                    continue
             aplicar(pasta, ligadas)
         elif r == "r":
             restaurar(pasta)
