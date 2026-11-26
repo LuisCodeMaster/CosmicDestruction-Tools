@@ -30,3 +30,15 @@ teste_tudo/
 # Python
 __pycache__/
 *.pyc
+
+# Xbox 360 / PS3 / Vilgax: arquivos do jogo e traduções (gerados da cópia de cada um)
+*.xbx
+*.ps3
+*.xex
+*.wmv
+*.sdat
+*.inicio
+cd_trabalho360/
+xiso_lista.txt
+arcv_nomes.txt
+traducao_*.txt

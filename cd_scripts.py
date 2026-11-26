@@ -111,7 +111,57 @@ def _corpo(d, p, fim, ops, func):
     return p
 
 
+def trocar_ordem(d, de=">", para="<"):
+    """Converte um .ds entre a ordem de bytes do PSP (little-endian) e a do PS3/Xbox 360 (big-endian).
+    Cada palavra de instrução e cada número trocam a ordem dos bytes; o texto das strings (instrução 0x04)
+    fica como está."""
+    def op_de(p):
+        return d[p + 3] if de == ">" else d[p]
+
+    def palavra(p):
+        return struct.pack(para + "I", struct.unpack_from(de + "I", d, p)[0])
+
+    out = bytearray()
+    for p in range(0, 0x14, 4):                    # assinatura + cabeçalho
+        out += palavra(p)
+    n0 = struct.unpack_from(de + "I", d, 0x10)[0]
+
+    def corpo(p, fim):
+        while p < fim:
+            op = op_de(p)
+            out.extend(palavra(p))
+            if op == 0x04:
+                e = d.index(b"\0", p + 4)
+                n = ((e - (p + 4) + 1 + 3) // 4) * 4
+                out.extend(d[p + 4:p + 4 + n])
+                p += 4 + n
+                continue
+            for i in range(IMM.get(op, 0)):
+                out.extend(palavra(p + 4 + 4 * i))
+            p += 4 + 4 * IMM.get(op, 0)
+        return p
+
+    p = corpo(0x14, 0x10 + 4 * n0)
+    while p + 16 <= len(d):
+        if op_de(p) != 0x21:
+            raise ValueError("estrutura inesperada em 0x%x" % p)
+        h, npar, n = struct.unpack_from(de + "III", d, p + 4)
+        for i in range(4):
+            out += palavra(p + 4 * i)
+        fim = p + 12 + 4 * n
+        if corpo(p + 16, fim) != fim:
+            raise ValueError("função em 0x%x não fecha certo" % p)
+        p = fim
+    while p + 4 <= len(d):                         # palavra final (0x21 que fecha o arquivo)
+        out += palavra(p)
+        p += 4
+    out += d[p:]
+    return bytes(out)
+
+
 def ler(d):
+    if d[:4] == MAGIC[::-1]:                       # .ds do PS3/Xbox 360 (big-endian)
+        d = trocar_ordem(d)
     if d[:4] != MAGIC:
         raise ValueError("não é um script .ds")
     ops, funcs = [], []
@@ -312,10 +362,17 @@ ARG_DESTRANSF = 0xD6819B97
 BACKUP_JOGO = 0x90E796D7     # onde o jogo guarda a cópia do direcional
 ORIG_DPAD = 0x66960347       # troca de alien pelo direcional (gld_psp.ds) - fica original
 ORIG_RODA = 0x8F436AD3       # atualiza a roda do canto (circdisp.ds)
+SEM_TROCA = False             # diagnóstico 360: carrega só a Ultimate, sem trocar o direcional
+MANTER_ULTIMATE = False       # diagnóstico: ao sair, não tira a Ultimate da memória
+BOTAO_TROCA = "btn_select"   # botão que entra/sai da Ultimate (no Xbox 360 vira "btn_r3")
 BOTAO_ESPECIAIS = 0x643CCFE7 # campo do controle: segurando o botão que mostra os especiais
 ZONAS_CAMERA = (0x9AD2BFC4, 0x3482B9BD)  # desligam a troca de alien (câmera fixa)
 IDS_ULTIMATE = (0xF54B5E78, 0x0AA213A1, 0xD1349EEF, 0xF02188EC, 0xBCE02525)  # campos da tabela
 CHARMGR = 0x93ACA275
+CARGAS = crc("luis_cargas")             # partes da Ultimate ainda carregando
+CARREGADAS = crc("luis_ult_carregadas")
+CARREGADAS_MISSAO = crc("luis_ult_carregadas_m")  # Ultimates já carregadas nesta fase (sem troca)
+PASTA_DADOS, PASTA_DESC = 0x0BFBFD2D, 0x79C61E79   # globais que o jogo passa a loaddata/loaddesc
 MORTO = 0x677FCE7E           # = verdadeiro enquanto o jogador está morto
 ZONA_ATIVA = 0x9CC5B0B4      # = verdadeiro dentro das áreas de câmera fixa
 OUTRA_TRAVA = 0xC0468A8C     # o jogo liga enquanto recarrega o checkpoint
@@ -339,6 +396,7 @@ F_SAIR = _fn("sair")              # já como Ben: devolve os aliens do direciona
 F_SAIR_SEGURO = _fn("sair_seguro")  # sai da Ultimate se for seguro
 F_DEVOLVIDO = _fn("devolvido")    # callback: direcional devolvido
 F_VIGIA = _fn("vigia")            # 15 s após entrar: solta a trava se a entrada empacou
+F_UM = _fn("carga_um")           # (sem trocar o direcional) uma parte da Ultimate carregou
 F_VIGIA_SAIDA = _fn("vigia_saida")  # 10 s após sair: solta se a devolução empacou
 F_DESTRAVA = _fn("destrava")      # Ultimate sem resposta: solta as travas
 F_RODA = _fn("roda")              # no lugar da roda do canto (repassa sempre)
@@ -355,7 +413,7 @@ F_GIG_CARREGAR = _fn("gig_carregar")  # já como Ben: carrega o Gigante no direc
 F_GIG_MODELO = _fn("gig_modelo")  # animações carregadas: carrega o modelo (l_tokd/g_wayb.psp)
 F_GIG_PRONTO = _fn("gig_pronto")  # modelo carregado: vira o Gigante
 F_GIG_CB = _fn("gig_cb")          # fim da animação de virar o Gigante
-NPAR_MOD = {F_SELECT: 1, F_RODA: 3, F_ZONA: 3, F_QUADRO: 1, F_GIG_PRONTO: 1, F_INTRO: 1}
+NPAR_MOD = {F_SELECT: 1, F_RODA: 3, F_ZONA: 3, F_QUADRO: 1, F_GIG_PRONTO: 1, F_INTRO: 1, F_UM: 1}
 TRANSF_GIGANTE = 0xB7269B14  # vira o Gigante (usa character_waybig e os golpes de atk_wb.ddf)
 # No jogo original o Gigante está espalhado: global/g_wayb.psp só tem ANIMAÇÕES,
 # l_tokd/g_wayb.psp tem MODELO e texturas, e o ESQUELETO fica em l_tokd/l_tokd.psp (pacote da
@@ -419,7 +477,7 @@ LIMITE_INTERACAO = 300       # ~10 s a 30 quadros/s (rede de segurança; com as 
 
 FUNCOES_MOD = (F_GIG_ENTRAR, F_GIG_CARREGAR, F_GIG_MODELO, F_GIG_PRONTO, F_GIG_CB, F_SELECT, F_ENTRAR, F_CARREGAR, F_PRONTO, F_ATIVAR, F_MONITOR, F_FIM,
                F_SAIR, F_SAIR_SEGURO, F_DEVOLVIDO, F_VIGIA, F_VIGIA_SAIDA, F_DESTRAVA,
-               F_RODA, F_ZONA, F_QUADRO, F_REDE, F_INTRO, F_INTRO_T, F_POSE, F_POSE_FIM, F_GRITO)
+               F_RODA, F_ZONA, F_QUADRO, F_REDE, F_INTRO, F_INTRO_T, F_POSE, F_POSE_FIM, F_GRITO, F_UM)
 VARIAVEIS_MOD = (GIGANTE, GIG_CARREGADO, SAINDO, RESTAURANDO, ATIVA, PENDENTE, ALIEN_MOD, FORMA_MOD, TRAVA_MOD,
                  COPIA_DIRECIONAL, ESPERA, PARADO, BATIDA, RECUSAS, QUADROS, QUADROS_TRAVA,
                  FALHAS, VIGIAS, VIGIAS_SAIDA, REDE_Y, REDE_POS, REDE_QUEDA, REDE_FIRME, REDE_VIVA,
@@ -663,6 +721,37 @@ def funcoes_do_mod(rede=True, gigante=True, hud_ben=False, intro=True):
     def tabela(dst):                           # rdst = tabela de ids dos aliens
         return [g(30, TABELA_ALIENS), instr(0x20, 30, 31, 0, dst)]
 
+    def carrega_so_ultimate():
+        # r9 = forma Ultimate. Carrega só os dados dela (como o jogo faz para cada forma
+        # do direcional), sem descarregar nada; cada Ultimate é carregada uma vez por fase.
+        return [
+            g(13, crc("missionmgr")), g(14, crc("missionmgr")),
+            instr(0x17, 14, 15, 0, crc("getcurrentmission")), instr(0x20, 15, 13, 1, 16),
+            # a lista vale só para a fase atual (a troca de fase descarrega tudo)
+            g(5, CARREGADAS_MISSAO), instr(0x10, 5, 16, 6), ("se_nao", 6, "ct"),
+            g(5, CARREGADAS), ("se_nao", 5, "ct"), ("vai", "tem"),
+            ("rotulo", "ct"), instr(0x16, 5, 0, 0), s(5, CARREGADAS), s(16, CARREGADAS_MISSAO),
+            ("rotulo", "tem"),
+            instr(0x18, 5, 9, 6), ("se_nao", 6, "ld"),
+            *chamar0(F_PRONTO), RETORNA,                # já carregada: segue
+            ("rotulo", "ld"),
+            sim(6), instr(0x1A, 5, 9, 6),
+            instr(0x18, 2, 9, 4),                       # r4 = gformdata[Ultimate]
+            num(5, 2), s(5, CARGAS),
+            instr(0x06, 16, 20, 0), g(21, PASTA_DADOS), instr(0x17, 4, 22, 0, crc("characterfile")),
+            g(23, F_UM), instr(0x17, 16, 17, 0, crc("loaddata")), instr(0x20, 17, 20, 4, 18),
+            instr(0x06, 16, 20, 0), g(21, PASTA_DESC), instr(0x17, 4, 22, 0, 0x7FB535F8),
+            g(23, F_UM), instr(0x17, 16, 17, 0, crc("loaddesc")), instr(0x20, 17, 20, 4, 18),
+        ]
+
+    def repassa_baixo():
+        # Xbox 360: repassa para a roda original com os argumentos em r3..r5, para a
+        # pilha de registradores da máquina dos scripts crescer o mínimo (em r20 a roda
+        # original rodava 20 registradores mais fundo a cada quadro).
+        return [instr(0x07, 6, 0, 0, ORIG_RODA),
+                instr(0x06, 0, 3, 0), instr(0x06, 1, 4, 0), instr(0x06, 2, 5, 0),
+                instr(0x20, 6, 3, 3, 7)]
+
     def timer(func, segundos):                 # createtimer(func, segundos, 1)
         return [g(8, func), num(9, segundos), num(10, 1), g(6, crc("createtimer")),
                 instr(0x20, 6, 8, 3, 7)]
@@ -786,6 +875,8 @@ def funcoes_do_mod(rede=True, gigante=True, hud_ben=False, intro=True):
                 g(8, F_SAIR), g(6, FUNC_DESTRANSF), instr(0x20, 6, 8, 1, 7)]
 
     def remove_ultimate(pfx):                  # tira a Ultimate do mod da memória
+        if MANTER_ULTIMATE:
+            return []
         return [
             g(8, ALIEN_MOD), ("se_nao", 8, pfx),
             g(2, h_gform), instr(0x18, 2, 8, 4), instr(0x17, 4, 5, 0, CAMPO_ULT),
@@ -959,13 +1050,15 @@ def funcoes_do_mod(rede=True, gigante=True, hud_ben=False, intro=True):
         ("rotulo", "segue"),
         g(16, PENDENTE), ("se_nao", 16, "guarda"), ("vai", "carrega"),
         ("rotulo", "guarda"),                   # guarda o direcional só uma vez
-        *chamar0(GUARDAR_DIRECIONAL),
-        g(16, BACKUP_JOGO), s(16, COPIA_DIRECIONAL),    # a cópia fica só com o mod
-        nil(16), s(16, BACKUP_JOGO), sim(16), s(16, PENDENTE),
+        *([nil(16), s(16, COPIA_DIRECIONAL), sim(16), s(16, PENDENTE)] if SEM_TROCA else [
+            *chamar0(GUARDAR_DIRECIONAL),
+            g(16, BACKUP_JOGO), s(16, COPIA_DIRECIONAL),    # a cópia fica só com o mod
+            nil(16), s(16, BACKUP_JOGO), sim(16), s(16, PENDENTE)]),
         ("rotulo", "carrega"),
         g(8, ALIEN_MOD), g(2, h_gform), instr(0x18, 2, 8, 4), instr(0x17, 4, 9, 0, CAMPO_ULT),
-        nil(10), nil(11), g(12, F_PRONTO),
-        g(6, PRECARREGAR), instr(0x20, 6, 8, 5, 7),     # carrega alien + Ultimate
+        *(carrega_so_ultimate() if SEM_TROCA else [
+            nil(10), nil(11), g(12, F_PRONTO),
+            g(6, PRECARREGAR), instr(0x20, 6, 8, 5, 7)]),     # carrega alien + Ultimate
         RETORNA,
         ("rotulo", "cancela"),
         *solta_trava_mod("c1"), nil(6), s(6, ALIEN_MOD),
@@ -980,6 +1073,15 @@ def funcoes_do_mod(rede=True, gigante=True, hud_ben=False, intro=True):
         RETORNA,
         ("rotulo", "cancela"),
         *solta_trava_mod("c1"),
+        RETORNA,
+    ]
+    f[F_UM] = [                                 # (sem trocar o direcional) 1 parte pronta
+        g(1, CARGAS), ("se_nao", 1, "fim"),
+        num(2, 1), instr(0x0B, 1, 2, 1), s(1, CARGAS),
+        num(2, 0), instr(0x10, 1, 2, 3), ("se_nao", 3, "fim"),
+        nil(1), s(1, CARGAS),
+        *chamar0(F_PRONTO),
+        ("rotulo", "fim"),
         RETORNA,
     ]
     f[F_ATIVAR] = [                             # 1 s depois de virar o alien
@@ -1128,7 +1230,8 @@ def funcoes_do_mod(rede=True, gigante=True, hud_ben=False, intro=True):
         *trava_mod(),                           # direcional parado durante o carregamento
         g(6, COPIA_DIRECIONAL), ("se_nao", 6, "sem_copia"), s(6, BACKUP_JOGO),
         ("rotulo", "sem_copia"),
-        g(20, F_DEVOLVIDO), g(6, RESTAURAR_DIRECIONAL), instr(0x20, 6, 20, 1, 7),
+        *(chamar0(F_DEVOLVIDO) if SEM_TROCA else [
+            g(20, F_DEVOLVIDO), g(6, RESTAURAR_DIRECIONAL), instr(0x20, 6, 20, 1, 7)]),
         *conta(VIGIAS_SAIDA, 4, 5, "vs"), *timer(F_VIGIA_SAIDA, 10),
         RETORNA,
         ("rotulo", "nada"),                     # nada a devolver: só finaliza
@@ -1221,7 +1324,7 @@ def funcoes_do_mod(rede=True, gigante=True, hud_ben=False, intro=True):
         ("rotulo", "i_livre"),
         num(4, 0), s(4, QUADROS_INTERAGINDO),
         ("rotulo", "sel"),
-        instr(0x17, 0, 16, 0, crc("btn_select")), ("se_nao", 16, "repassa"),
+        instr(0x17, 0, 16, 0, crc(BOTAO_TROCA)), ("se_nao", 16, "repassa"),
         *chamar0(F_SAIR_SEGURO),
         ("vai", "repassa"),
         ("rotulo", "normal"),                   # Ben/alien: direcional ainda pendente?
@@ -1275,15 +1378,16 @@ def funcoes_do_mod(rede=True, gigante=True, hud_ben=False, intro=True):
             RETORNA,
             ("rotulo", "rp"),
         ] if hud_ben else []),
-        instr(0x06, 0, 20, 0), instr(0x06, 1, 21, 0), instr(0x06, 2, 22, 0),
-        g(23, ORIG_RODA), instr(0x20, 23, 20, 3, 24),
+        *(repassa_baixo() if BOTAO_TROCA == "btn_r3" else [
+            instr(0x06, 0, 20, 0), instr(0x06, 1, 21, 0), instr(0x06, 2, 22, 0),
+            g(23, ORIG_RODA), instr(0x20, 23, 20, 3, 24)]),
         RETORNA,
     ]
     f[F_ZONA] = [                               # câmera fixa (o jogo tira o controle de troca)
         *e_especial(15, 14), ("se_nao", 15, "fim"),
         sim(16), s(16, BATIDA),
         g(16, PENDENTE), ("se_nao", 16, "fim"),         # só a Ultimate do mod
-        instr(0x17, 0, 16, 0, crc("btn_select")), ("se_nao", 16, "fim"),
+        instr(0x17, 0, 16, 0, crc(BOTAO_TROCA)), ("se_nao", 16, "fim"),
         *chamar0(F_SAIR_SEGURO),
         ("rotulo", "fim"),
         RETORNA,
@@ -1354,7 +1458,28 @@ def funcoes_do_mod(rede=True, gigante=True, hud_ben=False, intro=True):
 
 
 def cmd_ultimate_livre(origem, destino, rede=True, habilidades=True, gigante=False, hud_ben=False, intro=True):
+    global BOTAO_TROCA, SEM_TROCA, MANTER_ULTIMATE
     d0 = open(origem, "rb").read()
+    x360 = d0[:4] == MAGIC[::-1]          # Xbox 360 / PS3: script big-endian
+    if x360:
+        d0 = trocar_ordem(d0, ">", "<")
+        BOTAO_TROCA = "btn_r3"            # no 360 o jogo troca de alien com o R3 (gld_xbx.ds)
+        print("  script do Xbox 360 (big-endian): convertido; botão da Ultimate = R3")
+        if intro:
+            intro = False                 # a animação longa de transformação travou no 360
+            print("  Xbox 360: sem a animação longa de transformação (vira direto)")
+        # Testado no Xenia: trocar os aliens do direcional no meio da fase corrompe a
+        # memória do 360 (crashes em lugares diferentes). Carregando só a Ultimate, sem
+        # descarregar nada, não travou.
+        SEM_TROCA = MANTER_ULTIMATE = True
+        print("  Xbox 360: carrega só a Ultimate (o direcional não é trocado nem descarregado)")
+        if rede:
+            rede = False                  # usa playermgr.beam, que os scripts do 360 não usam
+            print("  Xbox 360: sem a rede de segurança contra quedas")
+        if hud_ben or gigante:
+            raise ValueError("--ben-gigante e --gigante ainda não existem para o Xbox 360")
+    else:
+        BOTAO_TROCA = "btn_select"
     d, tirou = remover_mod(d0)
     if tirou:
         print("  (o arquivo já tinha o mod: %d funções do fim retiradas antes)" % tirou)
@@ -1388,8 +1513,13 @@ def cmd_ultimate_livre(origem, destino, rede=True, habilidades=True, gigante=Fal
         saida += registro(h, npar, corpo)
     struct.pack_into("<I", saida, 4, struct.unpack_from("<I", saida, 4)[0] + len(novas))
     ler(bytes(saida))  # confere se o script continua válido
+    saida_le = bytes(saida)
     if bytes(saida[:len(d)]) != d[:4] + struct.pack("<I", len(funcs) + 1 + len(novas)) + d[8:]:
         raise ValueError("o começo do arquivo mudou (não devia)")
+    if x360:
+        saida = trocar_ordem(bytes(saida), "<", ">")   # volta para big-endian
+        if trocar_ordem(saida, ">", "<") != bytes(saida_le):
+            raise ValueError("a volta para big-endian não bateu (não devia)")
     with open(destino, "wb") as fo:
         fo.write(saida)
     print("%s criado (%d bytes; original %d + %d do mod no fim)" % (
@@ -1517,6 +1647,14 @@ def main():
             cmd_gerar_nomes(a[1], a[2], a[3])
         elif len(a) >= 3 and a[0] == "ultimate-livre":
             opc = a[3:]
+            if "--sem-trocar-direcional" in opc:
+                global SEM_TROCA
+                SEM_TROCA = True
+                print("  (diagnóstico: carrega só a Ultimate, sem trocar os aliens do direcional)")
+            if "--manter-ultimate" in opc:
+                global MANTER_ULTIMATE
+                MANTER_ULTIMATE = True
+                print("  (diagnóstico: ao sair, a Ultimate fica na memória)")
             cmd_ultimate_livre(a[1], a[2], rede="--sem-rede" not in opc,
                                habilidades="--sem-habilidades" not in opc,
                                gigante="--gigante" in opc, hud_ben="--ben-gigante" in opc,

@@ -24,3 +24,13 @@ Legenda: ✅ funciona no jogo · ⚠️ funciona com ressalva · ❌ não funcio
 | Ben gigante (R + SELECT) | `--ben-gigante` | ❌→🧪 | 22/11: não funcionou; correção (tamanho reaplicado a cada quadro) |
 | `cd_kit.py` com a ISO real | — | ✅ | 22/11: "Deu certo" |
 | Instalador `instalar_mod.py` | — | 🧪 | testado com ISO falsa |
+
+## Xbox 360 (Xenia Canary, scripts abertos e big-endian)
+
+| O quê | Como | Estado | Teste |
+|---|---|---|---|
+| Tradução PT-BR completa (1292 frases) | `cd_ps3.py texto-importar` em `global/scripts/xbx_us.txt` | ✅ | 26/11: "tá funcionando"; acentos ok |
+| Ultimate a qualquer momento (botão R3) | `cd_scripts ultimate-livre` (detecta o 360 sozinho) | 🧪 | 26/11: carregando só a Ultimate parou de travar; às vezes ela se desfaz sozinha |
+| Trocar o direcional no meio da fase (jeito do PSP) | — | ❌ | 26/11: crashes em lugares diferentes (memória corrompida); por isso o 360 carrega só a Ultimate |
+| Animação longa de transformação | — | ❌ | 26/11: travava; desligada no 360 |
+| Habilidades extras das Ultimates | `ultimate-livre` sem `--sem-habilidades` | ❓ | não testado no 360 |

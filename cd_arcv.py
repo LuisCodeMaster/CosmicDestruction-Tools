@@ -20,6 +20,10 @@ Uso (Termux):
     python cd_arcv.py vilgax.iso --extrair saida         extrai tudo
     python cd_arcv.py vilgax.iso --extrair saida --so "global/scripts/*"
     python cd_arcv.py vilgax.iso --procurar alienx        procura um nome em todos os arquivos
+    python cd_arcv.py vilgax.iso --colocar pasta_mod saida.iso
+        coloca na cópia da ISO os arquivos da pasta_mod (caminho de dentro do pacote, como
+        global/scripts/globals.ds, ou _sem_nome/XXXXXXXX.bin). Cada arquivo novo precisa caber no
+        espaço do antigo dentro do pacote (até o começo do arquivo seguinte); a ISO original não muda.
 Também aceita o psp_ben10.bin já extraído no lugar da ISO.
 Arquivos sem nome descoberto saem como _sem_nome/XXXXXXXX.bin (o hash).
 A primeira vez demora (procura os nomes); os nomes ficam em arcv_nomes.txt e as próximas vezes são rápidas.
@@ -293,6 +297,56 @@ def procurar(pac, tabela, nomes, alvos):
         print("Nada encontrado. Obs.: o conteúdo dos CARC é comprimido e não entra nesta procura.")
 
 
+def colocar(iso, pasta, saida, nomes):
+    """Troca arquivos do ARCV numa cópia da ISO, no espaço que cada um já ocupa."""
+    import shutil
+    if os.path.abspath(iso) == os.path.abspath(saida):
+        raise SystemExit("A saída precisa ser outro arquivo (a ISO original não é alterada).")
+    with open(iso, "rb") as f:
+        if f.read(4) == b"CISO":
+            raise SystemExit("Para colocar arquivos, use a .iso (não a .cso).")
+    leitor = LeitorISO(iso)
+    inicio = None
+    for nome, lba, tam in listar_iso(leitor):
+        if nome.lower() == PACOTE:
+            inicio = lba * SETOR
+    if inicio is None:
+        raise SystemExit("Não achei %s nessa ISO." % PACOTE)
+    pac = Fatia(leitor, inicio, 1 << 40)
+    tabela, total = ler_tabela(pac)
+    por_nome = {v: h for h, v in nomes.items()}
+    pos_tab = {h: i for i, (o, s, h) in enumerate(tabela)}
+    fins = sorted(o for o, s, h in tabela) + [total]
+    trocas = []
+    for raiz, _, arqs in os.walk(pasta):
+        for n in arqs:
+            caminho = os.path.join(raiz, n)
+            rel = os.path.relpath(caminho, pasta).replace("\\", "/").lower()
+            m = re.fullmatch(r"(?:.*/)?_sem_nome/([0-9a-f]{8})\.bin", rel)
+            h = int(m.group(1), 16) if m else por_nome.get(rel, zlib.crc32(rel.encode()))
+            if h not in pos_tab:
+                raise SystemExit("%s não existe no pacote." % rel)
+            o, s, _ = tabela[pos_tab[h]]
+            espaco = next(f for f in fins if f > o) - o
+            novo = open(caminho, "rb").read()
+            if len(novo) > espaco:
+                raise SystemExit("%s tem %d bytes e o espaço dele no pacote é %d (sobram %d de menos).\n"
+                                 "Diminua o arquivo e tente de novo." % (rel, len(novo), espaco, len(novo) - espaco))
+            trocas.append((rel, h, o, s, novo, espaco))
+    if not trocas:
+        raise SystemExit("A pasta %s está vazia." % pasta)
+    print("Copiando a ISO (pode demorar um pouco)...")
+    shutil.copyfile(iso, saida)
+    with open(saida, "r+b") as f:
+        for rel, h, o, s, novo, espaco in trocas:
+            f.seek(inicio + o)
+            f.write(novo + b"\0" * (max(s, len(novo)) - len(novo)))
+            f.seek(inicio + 12 + 12 * pos_tab[h] + 4)
+            f.write(struct.pack("<I", len(novo)))
+            print("  %s: %d -> %d bytes (espaço %d)" % (rel, s, len(novo), espaco))
+    print("%s criado com %d arquivos trocados." % (saida, len(trocas)))
+
+
 def main():
     ap = argparse.ArgumentParser(description="Abre o pacote ARCV do Vilgax Attacks (psp_ben10.bin).")
     ap.add_argument("origem", help="ISO/CSO do Vilgax Attacks, pasta extraída ou o psp_ben10.bin")
@@ -300,6 +354,7 @@ def main():
     ap.add_argument("--extrair", metavar="PASTA", help="extrai os arquivos para esta pasta")
     ap.add_argument("--so", nargs="+", metavar="PADRAO", help="só extrai os arquivos que batem com estes padrões")
     ap.add_argument("--procurar", nargs="+", metavar="NOME", help="procura estes nomes (texto e hash) dentro de todos os arquivos")
+    ap.add_argument("--colocar", nargs=2, metavar=("PASTA_MOD", "SAIDA_ISO"), help="coloca os arquivos da pasta numa cópia da ISO")
     ap.add_argument("--redescobrir", action="store_true", help="procura os nomes de novo em vez de usar arcv_nomes.txt")
     a = ap.parse_args()
 
@@ -347,6 +402,10 @@ def main():
             print("\nglobals.ds: %d bytes, %s" % (s, "MESMO formato de script do Cosmic Destruction"
                                                    if ok else "assinatura diferente: %s" % pac.ler(o, 4).hex(" ")))
     print("Lista completa salva em arcv_lista.txt")
+
+    if a.colocar:
+        colocar(a.origem, a.colocar[0], a.colocar[1], nomes)
+        return
 
     if a.procurar:
         procurar(pac, tabela, nomes, a.procurar)

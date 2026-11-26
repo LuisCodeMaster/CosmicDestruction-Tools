@@ -370,6 +370,20 @@ função 0xe8c0396d (Ultimates):
 Na transformação, o jogo liga a Ultimate a essa função (`person:setvolookup`). Uma fala é
 tocada com `player:playvo_ex(player, falante, tipo, prioridade, 0)`.
 
+**Como o jogo acha a amostra (descoberto em 26/11, ainda sem solução):** o script devolve o
+crc32 do nome COMPLETO (`ult_humongousaur_name_callout_01`), mas no banco o nome está cortado
+em 30 bytes (`ult_humongousaur_name_callout_`) e alguns nomes cortados se repetem (três
+`gwen_romd_timer_puzzle_hint_01`). Ou seja, o jogo NÃO acha a amostra pelo nome do banco: o
+nome completo não aparece em nenhum arquivo extraído (só scripts e vo). O banco tem dois
+grupos em ordem alfabética (falas comuns, depois as da fase). Por isso o grito copiado para
+o fim do banco não toca (testado no 360 em 26/11: só a Ultimate da própria fase grita).
+**Achado (26/11):** a lista é o `global/scripts/sounds.ddf`, um XML de texto:
+`<sound name="ult_humongousaur_name_callout_01" id="181" bank="voice" .../>` no grupo
+`dialog`. `id` = posição no banco de vozes DA FASE ATUAL, e cada nome tem um id só para o
+jogo inteiro (o 181 só é o grito em Roma de dia). Por isso o `cd_vozes.py` (com o sounds.ddf)
+põe os 5 gritos com nomes novos (`luis_ult_<alien>_grito`) nas MESMAS posições em todos os
+bancos (enchendo com cópias da menor fala até lá) e acrescenta essas 5 linhas no sounds.ddf.
+
 **Gritos das Ultimates:** cada fase só tinha o da Ultimate do evento dela. O `cd_vozes.py`
 põe as cinco amostras em todos os bancos e acrescenta os cinco casos na função 0xe8c0396d
 (como uma função nova no fim do script: a última vence).
@@ -459,3 +473,19 @@ trechos de `l_ence/l_ence_t.psp`). Cuidado: mudar um `.psp` de fase pode ser des
   (byte de flags lido do bit menos significativo, 1 = literal; referência de 2 bytes:
   posição = b0 | (b1 & 0xF0) << 4, tamanho = (b1 & 0x0F) + 3; anel de 4096 bytes cheio de zeros,
   começando em 4096 - 18). Conferido: a amostra descomprime consumindo exatamente os bytes guardados.
+
+## Pacotes do PS3 (`.ps3`, assinatura `vaps`) comparados com o PSP
+
+Diagnóstico de 23/11/2026 com `g_hm.ps3`, `g_fa.ps3` (PS3) e `g_hm.psp` (PSP). O contêiner é o mesmo
+`spav` em big-endian; os 9 subpacotes têm os mesmos tipos. Ao converter, troque a ordem dos bytes
+**campo a campo** (u32, u16, i16), não palavra a palavra.
+
+| Tipo | Conteúdo | PS3 vs PSP (Humungossauro) | Conversão |
+|---|---|---|---|
+| 12 | esqueleto | mesmo hash e mesmo tamanho (2.504 bytes); mesmos registros de 44 bytes | fácil (só bytes) |
+| 13 | cabeçalhos de animação | mesmos nomes e layout (852 bytes); PS3 tem 54, PSP 43 | fácil |
+| 9 | trilhas | mesmos tipos (bytes `10 02` rotação, `04 01` translação, `0c 04` escala, `0a 09` eventos); chave de rotação de 8 bytes igual (i16 x,y,z + i8 w + u8 quadro). O PS3 guarda bem mais chaves (o PSP foi enxugado) e usa o 2º byte 0x50 em vez de 0x10 | média (trocar bytes + enxugar) |
+| 0 | texturas | PS3 até 1024x1024 em formato próprio (cabeçalho `90 43 40 00`); PSP 32x32 a 128x128, 8 bits com paleta | trabalhosa (decodificar, reduzir, criar paleta) |
+| 3 | materiais | estruturas diferentes | a estudar |
+| 4 e 22 | malha (descrições e vértices) | PS3 muito maior e com outro formato de vértice | **difícil: é o bloqueio** |
+| 24 | sons (FEV1 + FSB4) | PS3 1,5 MB, PSP 100 KB | trabalhosa (outro codec); dá para usar sons de outro alien |

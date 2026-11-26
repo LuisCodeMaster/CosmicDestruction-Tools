@@ -48,6 +48,9 @@ Autor: Luis (GitHub LuisCodeMaster). Respostas e documentação **em português 
 | `cd_vozes.py` | Gritos das Ultimates nos bancos de voz e scripts de voz das fases |
 | `trocar_nome.py` | Troca nomes na tradução (`traducao_pt.txt`) e gera a ISO PT-BR |
 | `cd_arcv.py` | Vilgax Attacks: pacote ARCV (listar, `--procurar`, `--extrair`) |
+| `cd_xiso.py` | Xbox 360: lista e extrai a ISO (XDVDFS) |
+| `cd_kit360.py` | Xbox 360: menu (tradução, Ultimate no R3, habilidades, gritos) aplicado na pasta do jogo |
+| `cd_ps3.py` | PS3/360: pacotes "vaps" (animações) e textos big-endian (`texto-exportar`/`texto-importar`) |
 | `testes/` | Simulador da máquina dos scripts + testes do mod + testes de controle |
 
 ## Como testar

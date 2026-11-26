@@ -50,6 +50,12 @@ para `docs/estado.md` (e para `docs/historico.md`, se houve uma lição).
     (pedaços LZSS que sobrescrevem partes de outros arquivos). Detalhes em `docs/formatos.md`.
 17. **Alien X:** não existe jogável no jogo (só nas legendas da cena final, que é vídeo). Caminho possível:
     montar um a partir de outro alien (falta trocar textura nos `.psp`).
-18. **Próximo passo:** reempacotador do ARCV + teste simples (trocar uma legenda). As legendas são 4 arquivos sem
+18. **Tradução do Vilgax (feita e testada no jogo em 24/11/2026).** `cd_arcv.py --colocar` grava arquivos numa
+    cópia da ISO, no espaço que cada um já ocupa no pacote. As 599 frases foram traduzidas
+    (`traducao_vilgax_pt.txt`, fica só com o Luis) e vão no arquivo do espanhol (`_sem_nome/7ceedc78.bin`).
+    O jogo escolhe o idioma pelo sistema: no PPSSPP, Configurações > Sistema > Idioma do jogo = Español.
+    Falta: conferir acentos (ã õ ç â ê ô) e textos cortados; opção de tradução num kit do Vilgax; talvez
+    colocar também no lugar do inglês (cuidado com a cópia comprimida do inglês no CARC 66a3111e).
+19. Notas antigas sobre o reempacotador: reempacotador do ARCV + teste simples (trocar uma legenda). As legendas são 4 arquivos sem
     nome, um por idioma (inglês `817ba211`, francês `d89cdc3b`, italiano `c14a1a6d`, espanhol `7ceedc78`), e há uma
     cópia comprimida do inglês dentro de um CARC (`66a3111e`) que pode sobrepor a tradução.
