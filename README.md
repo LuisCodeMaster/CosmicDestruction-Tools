@@ -1,8 +1,15 @@
 # CosmicDestruction-Tools
 
-Kit de modding para **Ben 10 Ultimate Alien: Cosmic Destruction** (PSP, ULUS-10542), feito em Python puro. Roda no PC e no celular (Termux).
+Kit de modding para **Ben 10 Ultimate Alien: Cosmic Destruction**, feito em Python puro. Roda no PC e no celular (Termux).
 
-> Projeto de fã, não oficial. Este repositório **não contém nenhum arquivo do jogo**: todas as ferramentas trabalham sobre a **sua própria cópia** (ISO/CSO).
+| Versão | O que dá para fazer | Como |
+|---|---|---|
+| **PSP** (ULUS-10542) | mod completo: Ultimate a qualquer momento, interações, Gigante, Ben com golpes, tradução | `cd_kit.py` |
+| **Xbox 360** | tradução PT-BR, Ultimate no R3, gritos (experimental) | `cd_kit360.py` ([ver abaixo](#xbox-360)) |
+| **PS3** | tradução e análise dos pacotes (os scripts do PS3 são criptografados) | `cd_ps3.py` |
+| **Ben 10 Alien Force: Vilgax Attacks** (PSP) | tradução PT-BR completa | `cd_arcv.py` |
+
+> Projeto de fã, não oficial. Este repositório **não contém nenhum arquivo do jogo nem as traduções**: todas as ferramentas trabalham sobre a **sua própria cópia** (ISO/CSO).
 
 ## Jeito mais fácil: o menu do kit
 
@@ -24,6 +31,34 @@ Você liga ou desliga cada parte do mod pelo número e aperta **M**. O kit extra
 | Jogo em português | usa o `traducao_pt.txt` da pasta (fica só com você: não vem no repositório) | testado (acentos) |
 
 O estado detalhado de cada recurso está em [docs/estado.md](docs/estado.md).
+
+## Xbox 360
+
+No 360 os scripts do jogo são abertos (iguais aos do PSP, só que big-endian), e o emulador
+Xenia roda o jogo direto da pasta extraída. Por isso o kit do 360 aplica o mod **na pasta**:
+
+```
+python cd_kit360.py "Ben 10 - Ultimate Alien - Cosmic Destruction (USA).iso" PASTA_DO_JOGO
+```
+
+Na primeira vez ele guarda os arquivos originais da ISO em `cd_trabalho360/` (e, se a pasta
+ainda não existir, oferece extrair a ISO inteira). Toda vez que você aplica, ele parte dos
+originais, então dá para ligar e desligar opções à vontade; a opção **R** volta tudo ao original.
+No Xenia, abra o `default.xex` da pasta.
+
+| Parte do mod | O que faz | Estado |
+|---|---|---|
+| Jogo em português | 1292 frases, com as mensagens próprias do 360 (usa o `traducao_x360_pt.txt`, que fica só com você) | testado |
+| Ultimate a qualquer momento | **R3** vira a Ultimate do alien atual (no 360 o jogo usa o R3 para trocar de alien) | em teste |
+| Habilidades das Ultimates | caixa, teia, planar, como o alien normal | não testado no 360 |
+| Gritos das Ultimates | "Ultimate Humungousaur!" em qualquer fase | experimental (travou num teste) |
+
+Diferenças do 360 em relação ao PSP, descobertas nos testes no Xenia:
+
+- A Ultimate vira **direto**, sem a animação longa de transformação (ela travava no 360).
+- O mod **carrega só a Ultimate**: trocar os aliens do direcional no meio da fase, como no PSP,
+  corrompia a memória do 360 e travava o jogo em lugares diferentes.
+- Sem a rede de segurança contra quedas (ela usa uma função que os scripts do 360 não têm).
 
 ## Documentação
 
@@ -102,12 +137,15 @@ Todas usam só a biblioteca padrão do Python 3.8+. Rode qualquer uma sem argume
 | `cd_kit.py` | Menu que junta tudo: extrai, monta cada parte do mod e gera a ISO nova |
 | `instalar_mod.py` | Instala só o mod Ultimate: ISO/CSO original → ISO nova com o mod |
 | `cd_anims.py` | Pacotes `.psp`: copia e redireciona animações entre personagens, monta o Gigante e o Ben com golpes |
-| `cd_vozes.py` | Coloca os gritos das Ultimates nos bancos de voz e scripts de voz de todas as fases |
+| `cd_vozes.py` | Coloca os gritos das Ultimates nos bancos de voz e scripts de voz de todas as fases (PSP e 360; com o `sounds.ddf`, em posição fixa) |
 | `trocar_nome.py` | Troca um nome (alien, golpe, personagem) em toda a tradução e gera a ISO traduzida |
-| `cd_arcv.py` | **Vilgax Attacks:** lista, procura (`--procurar`) e extrai os arquivos do pacote `psp_ben10.bin` |
+| `cd_arcv.py` | **Vilgax Attacks:** lista, procura (`--procurar`), extrai e recoloca (`--colocar`) os arquivos do pacote `psp_ben10.bin` |
 | `cd_analisador.py` | Lista e identifica os arquivos da ISO/CSO e extrai arquivos escolhidos (`--extrair`, `--so`) |
 | `cd_iso.py` | Coloca arquivos modificados numa cópia da ISO (no lugar ou no fim, atualizando o índice) |
 | `cd_scripts.py` | Desmonta os scripts compilados `.ds`, aplica o mod `ultimate-livre`, gera a lista de nomes |
+| `cd_kit360.py` | **Xbox 360:** menu que aplica tradução, Ultimate no R3, habilidades e gritos na pasta do jogo |
+| `cd_xiso.py` | **Xbox 360:** lista e extrai a ISO (sistema de arquivos XDVDFS) |
+| `cd_ps3.py` | **PS3/360:** lista e converte pacotes `vaps` (esqueleto e animações) e exporta/importa os textos big-endian |
 | `cd_tool.py` | Exporta/importa os textos (`psp_*.txt`) e os dados binários `.ddf` (golpes, missões, personagens) |
 | `cd_texturas.py` | Exporta as texturas dos personagens (`.psp`) para PNG e importa de volta |
 
@@ -137,6 +175,8 @@ python cd_analisador.py jogo.iso
 - **`.ddf`**: registros `[hash nome][hash tipo][hash desc][qtd][ptr][tamanho][dados]`, com floats e hashes nos dados.
 - **`psp_*.txt`**: `[hash][tamanho][texto\0]` repetido.
 - **`.psp` (spav)**: contêiner com blocos tipados; bloco 0 = texturas 8 bits com paleta de 256 cores e swizzle do PSP.
+- **PS3 e Xbox 360**: os mesmos formatos com a ordem dos bytes invertida (big-endian). Os pacotes viram `vaps`; as animações do PS3 e do 360 são idênticas byte a byte, as texturas e os modelos mudam.
+- **Vozes**: bancos FMOD FSB4 por fase; quem diz a posição de cada fala no banco é o `global/scripts/sounds.ddf` (XML de texto).
 - **`.ds`**: bytecode de uma máquina virtual de registradores. Funções `21 00 00 00 | hash | nº parâmetros | tamanho`, instruções de 4 bytes (algumas com +4). Detalhes no cabeçalho de `cd_scripts.py`.
 
 ## Testes
@@ -150,4 +190,4 @@ Os testes usam o `globals.ds` e o `gld_psp.ds` originais extraídos pelo `cd_kit
 
 ## O que não colocar aqui
 
-ISO, EBOOT, arquivos extraídos (`.ds`, `.ddf`, `.psp`, `.txt` do jogo), scripts modificados e a lista de nomes gerada. O `.gitignore` já bloqueia esses arquivos.
+ISO, EBOOT, `default.xex`, arquivos extraídos (`.ds`, `.ddf`, `.psp`, `.xbx`, `.ps3`, `.txt` do jogo), scripts modificados, as traduções (`traducao_*.txt`) e a lista de nomes gerada. O `.gitignore` já bloqueia esses arquivos.
