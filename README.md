@@ -1,109 +1,313 @@
 # CosmicDestruction-Tools
 
-Kit de modding para **Ben 10 Ultimate Alien: Cosmic Destruction**, feito em Python puro. Roda no PC e no celular (Termux).
+Kit de modding para **Ben 10 Ultimate Alien: Cosmic Destruction**, feito em Python puro.
+Funciona no **PC** (Windows, Linux, Mac) e no **celular Android** (Termux).
 
-| Versão | O que dá para fazer | Como |
-|---|---|---|
-| **PSP** (ULUS-10542) | mod completo: Ultimate a qualquer momento, interações, Gigante, Ben com golpes, tradução | `cd_kit.py` |
-| **Xbox 360** | tradução PT-BR, Ultimate no R3, gritos (experimental) | `cd_kit360.py` ([ver abaixo](#xbox-360)) |
-| **PS3** | tradução e análise dos pacotes (os scripts do PS3 são criptografados) | `cd_ps3.py` |
-| **Ben 10 Alien Force: Vilgax Attacks** (PSP) | tradução PT-BR completa | `cd_arcv.py` |
+Com ele você pode, por exemplo:
 
-> Projeto de fã, não oficial. Este repositório **não contém nenhum arquivo do jogo nem as traduções**: todas as ferramentas trabalham sobre a **sua própria cópia** (ISO/CSO).
+- virar a **forma Ultimate a qualquer momento**, e não só nos eventos das fases;
+- deixar o **jogo em português**;
+- fazer as Ultimates **gritarem o próprio nome** em qualquer fase;
+- e, no PSP, jogar com o **Gigante (Way Big)** e dar ao **Ben os golpes do Gigante**.
 
-## Jeito mais fácil: o menu do kit
+> **Projeto de fã, não oficial.** Este repositório **não contém nenhum arquivo do jogo nem as
+> traduções prontas**. As ferramentas trabalham sobre a **sua própria cópia** do jogo, e a sua
+> ISO original **nunca é alterada**: o kit sempre cria uma cópia nova.
+
+---
+
+## Índice
+
+1. [Qual versão do jogo você tem?](#1-qual-versão-do-jogo-você-tem)
+2. [Antes de começar (só uma vez)](#2-antes-de-começar-só-uma-vez)
+3. [PSP no PC](#3-psp-no-pc)
+4. [PSP no celular (Termux)](#4-psp-no-celular-termux)
+5. [Xbox 360 (Xenia)](#5-xbox-360-xenia)
+6. [Jogo em português](#6-jogo-em-português)
+7. [Como usar o mod no jogo](#7-como-usar-o-mod-no-jogo)
+8. [Problemas comuns](#8-problemas-comuns)
+9. [Todas as ferramentas](#9-todas-as-ferramentas)
+10. [Para quem quer mexer no código](#10-para-quem-quer-mexer-no-código)
+
+---
+
+## 1. Qual versão do jogo você tem?
+
+| Versão | O que o kit faz | Programa principal | Emulador |
+|---|---|---|---|
+| **PSP** (americana, ULUS-10542) | mod completo: Ultimate, interações, Gigante, Ben com golpes, gritos, tradução | `cd_kit.py` | PPSSPP |
+| **Xbox 360** | tradução, Ultimate no R3, gritos (experimental) | `cd_kit360.py` | Xenia Canary |
+| **PS3** | só tradução e análise (os scripts do PS3 são criptografados) | `cd_ps3.py` | RPCS3 |
+| **Ben 10 Alien Force: Vilgax Attacks** (PSP) | tradução | `cd_arcv.py` | PPSSPP |
+
+O que cada parte faz, e o que já foi testado no jogo, está em [docs/estado.md](docs/estado.md).
+
+---
+
+## 2. Antes de começar (só uma vez)
+
+### 2.1 Instalar o Python
+
+- **Windows:** baixe em [python.org/downloads](https://www.python.org/downloads/) e, na
+  instalação, **marque a caixa "Add Python to PATH"**. Para conferir, abra o PowerShell e digite
+  `python --version`: deve aparecer `Python 3.x`.
+- **Android:** veja o [passo 4](#4-psp-no-celular-termux).
+- **Linux/Mac:** normalmente já vem instalado (use `python3` no lugar de `python`).
+
+O kit precisa só do Python 3.8 ou mais novo. **Não precisa instalar mais nada.**
+
+### 2.2 Baixar o kit
+
+1. No topo desta página, clique no botão verde **Code** e depois em **Download ZIP**.
+2. Extraia o ZIP numa pasta. Exemplo: `C:\Ben10Mod`.
+3. Coloque a **ISO do seu jogo** dentro dessa mesma pasta.
+
+A pasta deve ficar mais ou menos assim:
 
 ```
-python cd_kit.py "Ben 10 - Ultimate Alien - Cosmic Destruction (USA).iso"
+C:\Ben10Mod\
+    cd_kit.py
+    cd_kit360.py
+    cd_scripts.py
+    ... (os outros .py)
+    Ben 10 - Ultimate Alien - Cosmic Destruction (USA).iso
 ```
 
-Você liga ou desliga cada parte do mod pelo número e aperta **M**. O kit extrai da sua ISO só o que precisa
-(fica em `cd_trabalho/`), monta tudo e gera `nome do jogo (Mod).iso`. A ISO original não é alterada.
+### 2.3 Abrir o terminal na pasta
 
-| Parte do mod | O que faz | Estado |
-|---|---|---|
-| Ultimate a qualquer momento | SELECT vira a Ultimate do alien atual | testado no jogo |
-| Ultimates interagindo | caixas, beiradas, cair e apanhar sem travar (animações copiadas do alien normal) | testado (caixa) |
-| Animação de transformação | na 1ª Ultimate de cada alien em cada fase | testado, ajustado |
-| Gritos das Ultimates | "Ultimate Humungousaur!" em qualquer fase | experimental |
-| Gigante | Tartagira + SELECT vira o Gigante em qualquer fase | experimental |
-| Ben com golpes do Gigante | combo, especiais no R + botão (roda de especiais), R + SELECT = Ben gigante | combo e especiais testados |
-| Jogo em português | usa o `traducao_pt.txt` da pasta (fica só com você: não vem no repositório) | testado (acentos) |
+- **Windows:** abra a pasta no Explorador, clique na barra de endereço, digite `powershell` e
+  aperte Enter. O PowerShell abre já dentro da pasta.
+- **Linux/Mac:** abra o terminal e use `cd` até a pasta.
 
-O estado detalhado de cada recurso está em [docs/estado.md](docs/estado.md).
+---
 
-## Xbox 360
+## 3. PSP no PC
 
-No 360 os scripts do jogo são abertos (iguais aos do PSP, só que big-endian), e o emulador
-Xenia roda o jogo direto da pasta extraída. Por isso o kit do 360 aplica o mod **na pasta**:
+### Passo a passo
 
-```
-python cd_kit360.py "Ben 10 - Ultimate Alien - Cosmic Destruction (USA).iso" PASTA_DO_JOGO
-```
+1. Abra o terminal na pasta do kit (passo 2.3).
+2. Rode:
 
-Na primeira vez ele guarda os arquivos originais da ISO em `cd_trabalho360/` (e, se a pasta
-ainda não existir, oferece extrair a ISO inteira). Toda vez que você aplica, ele parte dos
-originais, então dá para ligar e desligar opções à vontade; a opção **R** volta tudo ao original.
-No Xenia, abra o `default.xex` da pasta.
+   ```
+   python cd_kit.py
+   ```
 
-| Parte do mod | O que faz | Estado |
-|---|---|---|
-| Jogo em português | 1292 frases, com as mensagens próprias do 360 (usa o `traducao_x360_pt.txt`, que fica só com você) | testado |
-| Ultimate a qualquer momento | **R3** vira a Ultimate do alien atual (no 360 o jogo usa o R3 para trocar de alien) | em teste |
-| Habilidades das Ultimates | caixa, teia, planar, como o alien normal | não testado no 360 |
-| Gritos das Ultimates | "Ultimate Humungousaur!" em qualquer fase | experimental (travou num teste) |
+   O kit acha a ISO na pasta sozinho. Se tiver mais de uma, ele pergunta qual usar.
+   Também dá para passar o nome: `python cd_kit.py "Ben 10 - Ultimate Alien - Cosmic Destruction (USA).iso"`.
 
-Diferenças do 360 em relação ao PSP, descobertas nos testes no Xenia:
+3. Aparece o menu:
 
-- A Ultimate vira **direto**, sem a animação longa de transformação (ela travava no 360).
-- O mod **carrega só a Ultimate**: trocar os aliens do direcional no meio da fase, como no PSP,
-  corrompia a memória do 360 e travava o jogo em lugares diferentes.
-- Sem a rede de segurança contra quedas (ela usa uma função que os scripts do 360 não têm).
+   ```
+   === O que vai no mod? ===
+     1) [x] Ultimate a qualquer momento (SELECT)
+     2) [x] Ultimates interagindo com o cenário (caixas, beiradas...)
+     3) [x] Animação de transformação na 1ª Ultimate de cada fase
+     4) [x] Ultimates gritando o nome em todas as fases
+     5) [ ] Tartagira + SELECT vira o Gigante (experimental)
+     6) [ ] Ben com os golpes do Gigante (...)
+     7) [ ] Jogo em português (...)
+     M) montar a ISO   L) limpar arquivos de trabalho   S) sair
+   ```
 
-## Documentação
+   - Digite o **número** de uma opção e aperte Enter para ligar `[x]` ou desligar `[ ]`.
+   - Digite **M** para montar.
 
-- [docs/formatos.md](docs/formatos.md): manual de todos os formatos do jogo (scripts, pacotes, animações, esqueletos, golpes, vozes).
-- [docs/estado.md](docs/estado.md): o que já foi testado no jogo.
-- [docs/historico.md](docs/historico.md): por que as coisas são como são.
-- [docs/pendencias.md](docs/pendencias.md): o que falta e o próximo passo de cada item.
-- [docs/como_pedir.md](docs/como_pedir.md): como pedir mudanças para uma IA sem perder o que já foi feito.
-- [CLAUDE.md](CLAUDE.md): regras do projeto para quem (pessoa ou IA) vai continuar.
+4. O kit extrai da sua ISO só o que precisa (para a pasta `cd_trabalho/`), monta o mod e cria
+   uma ISO nova: **`nome do jogo (Mod).iso`**.
+5. Abra a ISO nova no **PPSSPP**.
 
-## Mod principal: Ultimate a qualquer momento
-
-No jogo original, a forma Ultimate só aparece nos Ultimate Events de algumas fases. Com o mod:
-
-| Situação | SELECT faz |
-|---|---|
-| Como Ben | Abre a tela de troca de aliens (igual ao original) |
-| Como alien que tem forma Ultimate | Vira Ultimate |
-| Na forma Ultimate | Volta para o Ben e restaura os aliens do direcional |
-| Como Ben depois que a Ultimate acabou sozinha | Restaura os aliens do direcional |
-
-Aliens com forma Ultimate: Ernomosauro , Macaco Aranha, Friagem, Eco Eco e Fogo Fátuo.
-Na Ultimate, a roda do canto mostra os golpes especiais (como nos eventos do jogo).
-
-### Como funciona
-
-O mod **não altera nenhuma função do jogo**. Ele acrescenta funções novas no fim do `globals.ds` (nomes `luis_f_...`) e cópias ajustadas de 4 funções do jogo, que valem no lugar das originais (o carregador do EBOOT registra as funções em ordem e a última com o mesmo nome vence):
-
-- `switch_form_update`: SELECT chama o mod e a roda do canto passa pelo mod. O direcional continua o do jogo.
-- A função que guarda o direcional: se uma fase começar um Ultimate Event no meio da Ultimate do mod, ela recebe os seus aliens verdadeiros.
-- As 2 funções das áreas de câmera fixa: SELECT ainda sai da Ultimate do mod.
-
-Os Ultimate Events das fases funcionam como no jogo original. Vigias soltam travas presas e devolvem o direcional sozinhos, e uma rede de segurança puxa o jogador de volta se ele cair no vazio enquanto o mod está em ação (`--sem-rede` desliga).
-
-### Como aplicar (jeito fácil)
-
-Baixe o repositório, coloque a sua ISO (ou CSO) na mesma pasta e rode:
+### Só quero o mod da Ultimate, do jeito mais simples
 
 ```
 python instalar_mod.py
 ```
 
-O instalador acha o jogo na pasta, confere se é a versão americana (ULUS-10542), cria `nome do jogo (Ultimate Mod).iso` com o mod aplicado e confere o resultado. A sua ISO original não é alterada. Também dá para passar os caminhos: `python instalar_mod.py "jogo.iso" "saida.iso"` (opção `--sem-rede` desliga a rede de segurança).
+Ele acha o jogo, confere se é a versão americana (ULUS-10542) e cria
+`nome do jogo (Ultimate Mod).iso`.
 
-### Como aplicar (passo a passo, manual)
+---
+
+## 4. PSP no celular (Termux)
+
+1. Instale o **Termux** pelo [F-Droid](https://f-droid.org/packages/com.termux/). A versão da
+   Play Store é antiga.
+2. Abra o Termux e rode, uma linha de cada vez:
+
+   ```
+   pkg install python
+   termux-setup-storage
+   ```
+
+   O segundo comando pede permissão para acessar os arquivos: aceite.
+3. Coloque os arquivos do kit e a ISO numa pasta do celular. Exemplo: `Ben 10 Mod`.
+4. No Termux, entre na pasta e rode o kit:
+
+   ```
+   cd "/sdcard/Ben 10 Mod"
+   python cd_kit.py
+   ```
+
+5. Use o menu igual ao do [passo 3](#3-psp-no-pc). A ISO nova aparece na mesma pasta; abra no PPSSPP.
+
+---
+
+## 5. Xbox 360 (Xenia)
+
+No Xbox 360 o emulador **Xenia** roda o jogo direto de uma **pasta extraída** (o arquivo
+`default.xex` dentro dela). Por isso o kit do 360 **aplica o mod na pasta**, em vez de criar outra ISO.
+
+### Passo a passo
+
+1. Coloque a ISO do 360 na pasta do kit e abra o terminal nela (passo 2.3).
+2. Rode, trocando `C:\Ben10_360` pelo lugar onde o jogo vai ficar:
+
+   ```
+   python cd_kit360.py "Ben 10 - Ultimate Alien - Cosmic Destruction (USA).iso" "C:\Ben10_360"
+   ```
+
+3. Na primeira vez:
+   - o kit guarda os **arquivos originais** que ele mexe em `cd_trabalho360/originais`;
+   - se a pasta do jogo ainda não existir, ele pergunta se pode **extrair a ISO inteira** para
+     ela (uns 7 GB; demora alguns minutos).
+4. Aparece o menu:
+
+   ```
+   1 [X] Jogo em português                      (testado: funciona)
+   2 [X] Ultimate a qualquer momento (R3)       (em teste)
+   3 [ ] Ultimates com as habilidades do alien normal
+   4 [ ] Ultimates gritando o nome em todas as fases   (experimental)
+   A  aplicar    R  restaurar o original    S  sair
+   ```
+
+   - Número = liga/desliga. **A** = aplicar. **R** = volta o jogo ao original. **S** = sair.
+   - O kit lembra as suas escolhas para a próxima vez.
+5. No **Xenia Canary**, abra o `default.xex` da pasta do jogo.
+
+Toda vez que você aplica, o kit parte dos arquivos **originais**. Então dá para ligar e
+desligar opções à vontade, sem acumular um mod em cima do outro.
+
+### Diferenças do 360 em relação ao PSP
+
+| | PSP | Xbox 360 |
+|---|---|---|
+| Botão da Ultimate | SELECT | **R3** (apertar o analógico direito) |
+| Animação longa de transformação | sim | não (ela travava no 360) |
+| Aliens do direcional na Ultimate | trocados e devolvidos | **não mudam** (trocar travava o 360) |
+| Rede de segurança contra quedas | sim | não |
+
+---
+
+## 6. Jogo em português
+
+A tradução **não vem no repositório**: o texto é do jogo, então cada um tem a sua.
+
+| Versão | Arquivo de tradução | Onde colocar | Como aplicar |
+|---|---|---|---|
+| PSP | `traducao_pt.txt` | pasta do kit | opção **7** do `cd_kit.py` |
+| Xbox 360 | `traducao_x360_pt.txt` | pasta do kit | opção **1** do `cd_kit360.py` |
+| PS3 | `traducao_ps3_pt.txt` | pasta do kit | `cd_ps3.py texto-importar` |
+
+### Fazer a sua própria tradução
+
+O arquivo de tradução é um texto simples, uma frase por linha, no formato `CÓDIGO|texto`:
+
+```
+9337f49a|NOVO JOGO
+1443aa7d|OPÇÕES
+```
+
+1. **Exporte** os textos em inglês da sua cópia:
+
+   ```
+   python cd_tool.py texto-exportar psp_us.txt textos.txt      (PSP)
+   python cd_ps3.py texto-exportar xbx_us.txt textos.txt       (Xbox 360)
+   python cd_ps3.py texto-exportar ps3_us.txt textos.txt       (PS3)
+   ```
+
+   O arquivo de textos fica em `global/scripts/` dentro do jogo extraído.
+2. Abra o `textos.txt`, traduza **só o que vem depois do `|`** e salve com o nome da tabela acima.
+3. Não apague os códigos entre chaves e colchetes (`{2.5}`, `[4]`): são os tempos das
+   legendas. Os símbolos estranhos no meio das frases são os ícones dos botões: deixe-os no lugar.
+
+### Trocar um nome em toda a tradução (PSP)
+
+```
+python trocar_nome.py
+```
+
+Ele pergunta o nome antigo e o novo (ex.: "Ernomossauro" → "Humungossauro"), troca em todas as
+frases do `traducao_pt.txt` e gera a ISO traduzida.
+
+---
+
+## 7. Como usar o mod no jogo
+
+### Ultimate a qualquer momento
+
+Aliens com forma Ultimate: **Humungossauro, Aranha Macaca, Gelo (Big Chill), Eco Eco e Fogo-Fátuo**.
+
+| Situação | SELECT (PSP) / R3 (360) faz |
+|---|---|
+| Como **Ben** | o mesmo do jogo original (tela de troca de aliens) |
+| Como **alien que tem Ultimate** | vira a **Ultimate** |
+| Na **Ultimate** | volta ao normal |
+
+Na Ultimate, a roda do canto mostra os golpes especiais, como nos eventos do jogo.
+Os eventos de Ultimate das fases continuam funcionando como no original.
+
+### Dicas
+
+- **PPSSPP: não use save state** (F2/F4) para testar o mod. O save state guarda o script antigo
+  na memória. Abra o jogo e carregue o **save do próprio jogo**.
+- A transformação só acontece quando o personagem não está atacando, agarrado ou com o
+  movimento travado.
+- Tartagira e aliens sem forma Ultimate: o botão não faz nada.
+
+---
+
+## 8. Problemas comuns
+
+| Problema | Solução |
+|---|---|
+| `python` não é reconhecido | Reinstale o Python marcando **"Add Python to PATH"** (passo 2.1). No Linux/Mac, use `python3`. |
+| "Nada mudou" depois de baixar uma versão nova de um `.py` | O navegador salvou como `nome (1).py` e o comando rodou o antigo. Apague o antigo e renomeie o novo. |
+| "Não achei a ISO" | A ISO tem de estar na **mesma pasta** dos `.py`, ou passe o caminho completo entre aspas. |
+| O mod não aparece no PPSSPP | Você carregou um save state. Feche o jogo, abra a ISO nova e carregue o save do jogo. |
+| Comando com espaços no nome falha | Coloque o caminho **entre aspas**: `"Ben 10 - ... (USA).iso"`. |
+| Quero desfazer tudo | PSP: use a ISO original (ela nunca é alterada). Xbox 360: opção **R** do `cd_kit360.py`. |
+| O jogo travou | Anote **onde** e **o que estava fazendo** e abra uma *issue* aqui no GitHub. No Xenia, mande também o log (abra o jogo com `--log_file=log.txt`). |
+
+---
+
+## 9. Todas as ferramentas
+
+Todas usam só a biblioteca padrão do Python 3.8+. Rode qualquer uma **sem argumentos** para ver a ajuda.
+
+### Menus (comece por aqui)
+
+| Ferramenta | Para quê |
+|---|---|
+| `cd_kit.py` | **PSP:** menu que extrai, monta cada parte do mod e gera a ISO nova |
+| `cd_kit360.py` | **Xbox 360:** menu que aplica tradução, Ultimate no R3, habilidades e gritos na pasta do jogo |
+| `instalar_mod.py` | **PSP:** só o mod Ultimate, do jeito mais simples |
+| `trocar_nome.py` | **PSP:** troca um nome em toda a tradução e gera a ISO traduzida |
+
+### Ferramentas avançadas
+
+| Ferramenta | Para quê |
+|---|---|
+| `cd_analisador.py` | **PSP:** lista e identifica os arquivos da ISO/CSO e extrai os escolhidos (`--extrair`, `--so`) |
+| `cd_iso.py` | **PSP:** coloca arquivos modificados numa cópia da ISO |
+| `cd_xiso.py` | **Xbox 360:** lista e extrai a ISO (sistema de arquivos XDVDFS) |
+| `cd_scripts.py` | Desmonta os scripts `.ds`, aplica o mod `ultimate-livre` (PSP e 360) e gera a lista de nomes |
+| `cd_anims.py` | **PSP:** copia e redireciona animações entre personagens, monta o Gigante e o Ben com golpes |
+| `cd_vozes.py` | Gritos das Ultimates nos bancos de voz e scripts de voz de todas as fases (PSP e 360) |
+| `cd_tool.py` | Exporta/importa os textos (`psp_*.txt`) e os dados `.ddf` (golpes, missões, personagens) |
+| `cd_texturas.py` | **PSP:** exporta as texturas dos personagens para PNG e importa de volta |
+| `cd_ps3.py` | **PS3/360:** pacotes `vaps` (esqueleto e animações) e textos (`texto-exportar`, `texto-importar`) |
+| `cd_arcv.py` | **Vilgax Attacks:** lista, procura (`--procurar`), extrai e recoloca (`--colocar`) os arquivos do `psp_ben10.bin` |
+
+### Exemplo: aplicar o mod da Ultimate à mão (PSP)
 
 ```
 # 1. extrair o script global do jogo
@@ -118,38 +322,33 @@ cp globals_mod.ds mod/global/scripts/globals.ds
 python cd_iso.py jogo.iso jogo_ultimate.iso mod
 ```
 
-Abra `jogo_ultimate.iso` no PPSSPP. A ISO original nunca é alterada. O `globals.ds` modificado fica uns 7,6 KB maior; o `cd_iso.py` coloca ele no fim da ISO.
+---
 
-### Dicas e limitações
+## 10. Para quem quer mexer no código
 
-- **Não teste com save states do PPSSPP**: eles guardam na memória o script da versão anterior. Abra o jogo e carregue o save do próprio jogo.
-- A transformação só começa se o personagem não estiver atacando, interagindo, agarrado ou com o movimento bloqueado. Se o jogo ficar "ocupado", segure SELECT para sair da Ultimate.
-- Durante a Ultimate, o direcional fica com o alien normal e a Ultimate (é o que o carregamento do jogo coloca). Ao sair, tudo volta ao normal.
-- Tartagira e aliens sem Ultimate: SELECT não faz nada.
-- Opcional: `python cd_scripts.py verificar-funcoes jogo.iso relatorio.txt` confere se algum nome usado pelo mod aparece nos arquivos do jogo.
+### Documentação
 
-## Ferramentas
-
-Todas usam só a biblioteca padrão do Python 3.8+. Rode qualquer uma sem argumentos para ver a ajuda.
-
-| Ferramenta | Para quê |
+| Arquivo | Conteúdo |
 |---|---|
-| `cd_kit.py` | Menu que junta tudo: extrai, monta cada parte do mod e gera a ISO nova |
-| `instalar_mod.py` | Instala só o mod Ultimate: ISO/CSO original → ISO nova com o mod |
-| `cd_anims.py` | Pacotes `.psp`: copia e redireciona animações entre personagens, monta o Gigante e o Ben com golpes |
-| `cd_vozes.py` | Coloca os gritos das Ultimates nos bancos de voz e scripts de voz de todas as fases (PSP e 360; com o `sounds.ddf`, em posição fixa) |
-| `trocar_nome.py` | Troca um nome (alien, golpe, personagem) em toda a tradução e gera a ISO traduzida |
-| `cd_arcv.py` | **Vilgax Attacks:** lista, procura (`--procurar`), extrai e recoloca (`--colocar`) os arquivos do pacote `psp_ben10.bin` |
-| `cd_analisador.py` | Lista e identifica os arquivos da ISO/CSO e extrai arquivos escolhidos (`--extrair`, `--so`) |
-| `cd_iso.py` | Coloca arquivos modificados numa cópia da ISO (no lugar ou no fim, atualizando o índice) |
-| `cd_scripts.py` | Desmonta os scripts compilados `.ds`, aplica o mod `ultimate-livre`, gera a lista de nomes |
-| `cd_kit360.py` | **Xbox 360:** menu que aplica tradução, Ultimate no R3, habilidades e gritos na pasta do jogo |
-| `cd_xiso.py` | **Xbox 360:** lista e extrai a ISO (sistema de arquivos XDVDFS) |
-| `cd_ps3.py` | **PS3/360:** lista e converte pacotes `vaps` (esqueleto e animações) e exporta/importa os textos big-endian |
-| `cd_tool.py` | Exporta/importa os textos (`psp_*.txt`) e os dados binários `.ddf` (golpes, missões, personagens) |
-| `cd_texturas.py` | Exporta as texturas dos personagens (`.psp`) para PNG e importa de volta |
+| [docs/estado.md](docs/estado.md) | o que já foi testado no jogo, em cada versão |
+| [docs/pendencias.md](docs/pendencias.md) | o que falta e o próximo passo de cada item |
+| [docs/formatos.md](docs/formatos.md) | manual de todos os formatos do jogo |
+| [docs/historico.md](docs/historico.md) | por que as coisas são como são (lições que custaram caro) |
+| [docs/como_pedir.md](docs/como_pedir.md) | como pedir mudanças para uma IA sem perder o que já foi feito |
+| [CLAUDE.md](CLAUDE.md) | regras do projeto para quem (pessoa ou IA) vai continuar |
 
-### Desmontar scripts com nomes legíveis
+### Como o mod da Ultimate funciona
+
+O mod **não altera nenhuma função do jogo**. Ele acrescenta funções novas no fim do
+`globals.ds` (nomes `luis_f_...`) e cópias ajustadas de 4 funções do jogo. O jogo registra as
+funções em ordem, e a última com o mesmo nome vence:
+
+- `switch_form_update`: o botão chama o mod e a roda do canto passa pelo mod;
+- a função que guarda o direcional: se uma fase começar um evento de Ultimate durante a Ultimate
+  do mod, ela recebe os aliens verdadeiros;
+- as 2 funções das áreas de câmera fixa: o botão ainda sai da Ultimate do mod.
+
+### Desmontar os scripts com nomes legíveis
 
 Os nomes internos do jogo são hashes CRC32. Para ver os nomes, gere a lista a partir da sua cópia:
 
@@ -158,36 +357,35 @@ python cd_scripts.py gerar-nomes ULUS10542_EBOOT.BIN extraido cd_nomes.txt
 python cd_scripts.py desmontar globals.ds globals.txt --nomes cd_nomes.txt
 ```
 
-O EBOOT descriptografado sai do PPSSPP: *Ferramentas → Ferramentas de desenvolvedor → Dump Decrypted EBOOT.BIN on game boot* (vai para `PSP/SYSTEM/DUMP/`).
+O EBOOT descriptografado sai do PPSSPP: *Ferramentas → Ferramentas de desenvolvedor →
+Dump Decrypted EBOOT.BIN on game boot* (vai para `PSP/SYSTEM/DUMP/`).
 
-## No celular (Termux)
+### Formatos descobertos (resumo)
 
-```
-pkg install python
-termux-setup-storage
-cd ~/storage/shared/pasta_do_jogo
-python cd_analisador.py jogo.iso
-```
+- **Dados e textos:** começam com `0x1BADBABE`. Os nomes são CRC32 do texto em minúsculas.
+- **`.ddf`:** registros `[hash nome][hash tipo][hash desc][qtd][ptr][tamanho][dados]`.
+- **`psp_*.txt`:** `[hash][tamanho][texto\0]` repetido.
+- **`.psp` (spav):** contêiner com blocos tipados; bloco 0 = texturas de 8 bits com paleta e swizzle do PSP.
+- **`.ds`:** bytecode de uma máquina virtual de registradores (detalhes em `cd_scripts.py`).
+- **PS3 e Xbox 360:** os mesmos formatos com a ordem dos bytes invertida (big-endian). Os pacotes
+  viram `vaps`. As animações do PS3 e do 360 são idênticas byte a byte; texturas e modelos mudam.
+- **Vozes:** bancos FMOD FSB4 por fase. Quem diz a posição de cada fala no banco é o
+  `global/scripts/sounds.ddf` (um XML de texto).
 
-## Formatos descobertos
+Tudo em detalhe: [docs/formatos.md](docs/formatos.md).
 
-- **Arquivos de dados e textos**: começam com `0x1BADBABE`. Nomes são CRC32 do texto em minúsculas.
-- **`.ddf`**: registros `[hash nome][hash tipo][hash desc][qtd][ptr][tamanho][dados]`, com floats e hashes nos dados.
-- **`psp_*.txt`**: `[hash][tamanho][texto\0]` repetido.
-- **`.psp` (spav)**: contêiner com blocos tipados; bloco 0 = texturas 8 bits com paleta de 256 cores e swizzle do PSP.
-- **PS3 e Xbox 360**: os mesmos formatos com a ordem dos bytes invertida (big-endian). Os pacotes viram `vaps`; as animações do PS3 e do 360 são idênticas byte a byte, as texturas e os modelos mudam.
-- **Vozes**: bancos FMOD FSB4 por fase; quem diz a posição de cada fala no banco é o `global/scripts/sounds.ddf` (XML de texto).
-- **`.ds`**: bytecode de uma máquina virtual de registradores. Funções `21 00 00 00 | hash | nº parâmetros | tamanho`, instruções de 4 bytes (algumas com +4). Detalhes no cabeçalho de `cd_scripts.py`.
-
-## Testes
+### Testes
 
 ```
 python testes/testes.py      # o mod rodando num simulador da máquina dos scripts
 python testes/mutantes.py    # versões quebradas de propósito: os testes têm de pegar todas
 ```
 
-Os testes usam o `globals.ds` e o `gld_psp.ds` originais extraídos pelo `cd_kit.py` (ou a pasta da variável `CD_SCRIPTS`).
+Os testes usam o `globals.ds` e o `gld_psp.ds` originais extraídos pelo `cd_kit.py` (ou a pasta
+da variável `CD_SCRIPTS`).
 
-## O que não colocar aqui
+### O que nunca colocar no repositório
 
-ISO, EBOOT, `default.xex`, arquivos extraídos (`.ds`, `.ddf`, `.psp`, `.xbx`, `.ps3`, `.txt` do jogo), scripts modificados, as traduções (`traducao_*.txt`) e a lista de nomes gerada. O `.gitignore` já bloqueia esses arquivos.
+ISO, EBOOT, `default.xex`, arquivos extraídos do jogo (`.ds`, `.ddf`, `.psp`, `.xbx`, `.ps3`,
+`.txt`), scripts modificados, as traduções (`traducao_*.txt`) e a lista de nomes gerada.
+O `.gitignore` já bloqueia esses arquivos.
